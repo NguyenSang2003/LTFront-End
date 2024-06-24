@@ -24,3 +24,5 @@ yarn-error.log*
 
 .idea/inspectionProfiles/
 .idea/vcs.xml
+
+src/assets/
