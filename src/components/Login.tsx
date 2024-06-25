@@ -18,6 +18,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
         // Kiểm tra xem có thông tin đăng nhập trong localStorage không
         const savedUser = localStorage.getItem('user');
         const savedCode = localStorage.getItem('reloginCode');
+        // Thực hiện Relogin nếu còn tồn tại của mã ReloginCode trong localStorage
         if (savedUser && savedCode && socket) {
             const reloginMessage = {
                 action: 'onchat',
@@ -30,6 +31,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
         }
     }, [socket]);
 
+    // Hàm thực hiện việc đăng nhập
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         if (user && pass && socket) {
@@ -52,7 +54,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                     console.log('Received message: ', data);
                     localStorage.setItem('user', user);  // Lưu thông tin người dùng
                     localStorage.setItem('reloginCode', data.data.RE_LOGIN_CODE);  // Lưu mã relogin
-                    navigate('/chat');
+                    navigate('/chat');//đăng nhập thành công thì chuyển tới trang Chat
                 } else if (data.event === 'LOGIN' && data.status === 'error') {
                     alert(data.mes);
                 } else if (data.event === 'RE_LOGIN' && data.status === 'success') {
@@ -100,18 +102,6 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                                     required
                                 />
                             </div>
-                            {/*<div className="form-group d-flex justify-content-between">*/}
-                            {/*    <div className="custom-control custom-checkbox">*/}
-                            {/*        <input*/}
-                            {/*            type="checkbox"*/}
-                            {/*            className="custom-control-input"*/}
-                            {/*            id="checkbox-remember"*/}
-                            {/*        />*/}
-                            {/*        <label className="custom-control-label" htmlFor="checkbox-remember">Ghi nhớ*/}
-                            {/*            tôi</label>*/}
-                            {/*    </div>*/}
-                            {/*    <Link to="/forgot-pass">Quên mật khẩu ?</Link>*/}
-                            {/*</div>*/}
                             <button className="btn btn-lg btn-block btn-primary" type="submit">Đăng nhập</button>
                         </form>
                         <p className="text-center">
