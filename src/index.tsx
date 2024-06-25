@@ -5,7 +5,7 @@ import App from './App';
 import 'bootstrap/dist/css/bootstrap.min.css';//để dùng được bootstrap
 
 const container = document.getElementById('root');
-const root = createRoot(container!); // createRoot(container!) if you use TypeScript
+const root = createRoot(container!);
 root.render(
     <React.StrictMode>
         <App/>
