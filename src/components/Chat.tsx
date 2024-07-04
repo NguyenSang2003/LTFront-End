@@ -1,6 +1,6 @@
-import React, {useEffect, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {sendMessage} from '../utils/websocket';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { sendMessage } from '../utils/websocket';
 import '../assets/css/template.min.css';
 
 interface ChatProps {
@@ -13,15 +13,21 @@ interface User {
     type: number;
 }
 
-const Chat: React.FC<ChatProps> = ({socket}) => {
+const Chat: React.FC<ChatProps> = ({ socket }) => {
     const [messages, setMessages] = useState<string[]>([]);
     const [input, setInput] = useState("");
     const [recipient, setRecipient] = useState("");
     const [recipients, setRecipients] = useState<User[]>([]);
     const [isChatVisible, setIsChatVisible] = useState(false);
+    const [userName, setUserName] = useState<string | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
+        const loggedInUserName = localStorage.getItem('userName');
+        if (loggedInUserName) {
+            setUserName(loggedInUserName);
+        }
+
         if (socket) {
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
@@ -38,7 +44,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 }
             };
 
-            // Gửi yêu cầu lấy ra danh sách người dùng
             sendMessage(socket, {
                 action: "onchat",
                 data: {
@@ -54,7 +59,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     }, [socket, navigate]);
 
-    // Hàm gửi tin nhắn đi
     const sendMessageHandler = () => {
         if (input && recipient && socket) {
             const chatMessage = {
@@ -76,15 +80,12 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-
-    // Hàm xử lý khi ấn vào người dùng
     const handleRecipientClick = (rec: string) => {
         setRecipient(rec);
-        setMessages([]); //Xóa toàn bộ tin nhắn
-        setIsChatVisible(true); //Hiển thị phần chat
+        setMessages([]);
+        setIsChatVisible(true);
     };
 
-    // Hàm tải lại danh sách người dùng
     const refreshUserList = () => {
         if (socket) {
             sendMessage(socket, {
@@ -96,15 +97,38 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem('userName');
+        localStorage.removeItem('user');
+        localStorage.removeItem('reloginCode');
+
+        if (socket) {
+            sendMessage(socket, {
+                action: "onchat",
+                data: {
+                    event: "LOGOUT",
+                }
+            });
+        }
+
+        navigate('/');
+    };
+
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
-            {/*Phần danh sách người dùng*/}
             <div className={`sidebar bg-light border-right ${isChatVisible ? 'sidebar-hidden' : ''}`}>
                 <div className="p-4">
                     <h5>App Chat RealTime NLU</h5>
                 </div>
                 <div className="p-4">
                     <input type="text" className="form-control" placeholder="Tìm kiếm người dùng"/>
+                </div>
+                <div className="d-flex justify-content-between align-items-center p-4">
+                    <h6>{userName || 'Loading...'}</h6>
+                    <button
+                        style={{ fontFamily: 'sans-serif', fontWeight: 'bold'
+                    }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
+                    </button>
                 </div>
                 <div className="d-flex justify-content-between align-items-center p-4">
                     <h6>Danh sách người dùng</h6>
@@ -135,15 +159,12 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 </div>
             </div>
 
-            {/*Phần chat*/}
             <div className={`main flex-grow-1 ${isChatVisible ? 'main-visible' : ''}`}>
                 <div className="chat-body d-flex flex-column h-100">
                     <div
                         className="chat-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                         <div className="media align-items-center">
-                            <div className="media-body d-flex align-items-center">
-
-                                {/*Nút quay lại từ chat tới danh sách người dùng*/}
+                        <div className="media-body d-flex align-items-center">
                                 <a style={{margin: '0 8px 0 4px'}} className="text-muted px-0" href="#"
                                    onClick={() => setIsChatVisible(false)}>
                                     <i className="fa-solid fa-arrow-left"></i>
