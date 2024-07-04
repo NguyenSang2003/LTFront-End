@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {sendMessage} from '../utils/websocket';
+import {format} from 'date-fns';
 import '../assets/css/template.min.css';
 
 interface ChatProps {
@@ -13,8 +14,14 @@ interface User {
     type: number;
 }
 
+interface Message {
+    content: string;
+    timestamp: Date;
+    isSent: boolean; // Thêm trường này để phân biệt tin nhắn gửi và nhận
+}
+
 const Chat: React.FC<ChatProps> = ({socket}) => {
-    const [messages, setMessages] = useState<string[]>([]);
+    const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
     const [input, setInput] = useState("");
     const [recipient, setRecipient] = useState("");
     const [recipients, setRecipients] = useState<User[]>([]);
@@ -27,9 +34,29 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 const data = JSON.parse(msg.data);
                 console.log("Received message: ", data);
                 if (data.event === "RECEIVE_CHAT") {
-                    setMessages((prevMessages) => [...prevMessages, data.data.mes]);
+                    const newMessages = {...messages};
+                    if (!newMessages[recipient]) {
+                        newMessages[recipient] = [];
+                    }
+                    newMessages[recipient].push({
+                        content: data.data.mes,
+                        timestamp: new Date(),
+                        isSent: false
+                    });
+                    setMessages(newMessages);
+                    localStorage.setItem('messages', JSON.stringify(newMessages));
                 } else if (data.event === "SEND_CHAT" && data.status === "success") {
-                    setMessages((prevMessages) => [...prevMessages, `You: ${data.data.mes}`]);
+                    const newMessages = {...messages};
+                    if (!newMessages[recipient]) {
+                        newMessages[recipient] = [];
+                    }
+                    newMessages[recipient].push({
+                        content: `Bạn: ${data.data.mes}`,
+                        timestamp: new Date(),
+                        isSent: true
+                    });
+                    setMessages(newMessages);
+                    localStorage.setItem('messages', JSON.stringify(newMessages));
                 } else if (data.event === "AUTH" && data.status === "error" && data.mes === "User not Login") {
                     alert("Phiên đăng nhập đã hết. Hãy đăng nhập lại.");
                     navigate('/');
@@ -52,7 +79,14 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 socket.removeEventListener('message', handleMessage);
             };
         }
-    }, [socket, navigate]);
+    }, [socket, navigate, recipient, messages]);
+
+    useEffect(() => {
+        const storedMessages = localStorage.getItem('messages');
+        if (storedMessages) {
+            setMessages(JSON.parse(storedMessages));
+        }
+    }, []);
 
     // Hàm gửi tin nhắn đi
     const sendMessageHandler = () => {
@@ -72,16 +106,24 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             sendMessage(socket, chatMessage);
             setInput("");
 
-            setMessages((prevMessages) => [...prevMessages, `You: ${input}`]);
+            const newMessages = {...messages};
+            if (!newMessages[recipient]) {
+                newMessages[recipient] = [];
+            }
+            newMessages[recipient].push({
+                content: `Bạn: ${input}`,
+                timestamp: new Date(),
+                isSent: true
+            });
+            setMessages(newMessages);
+            localStorage.setItem('messages', JSON.stringify(newMessages));
         }
     };
-
 
     // Hàm xử lý khi ấn vào người dùng
     const handleRecipientClick = (rec: string) => {
         setRecipient(rec);
-        setMessages([]); //Xóa toàn bộ tin nhắn
-        setIsChatVisible(true); //Hiển thị phần chat
+        setIsChatVisible(true); // Hiển thị phần chat
     };
 
     // Hàm tải lại danh sách người dùng
@@ -96,9 +138,37 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
+    // Hàm xóa tin nhắn với xác nhận
+    const deleteMessages = () => {
+        if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này?")) {
+            const newMessages = {...messages};
+            newMessages[recipient] = [];
+            setMessages(newMessages);
+            localStorage.setItem('messages', JSON.stringify(newMessages));
+        }
+    };
+
+    // Hàm định dạng thời gian tin nhắn
+    // Định nghĩa hàm formatMessageTime với xử lý lỗi
+    const formatMessageTime = (timestamp: string | Date): string => {
+        try {
+            const date = new Date(timestamp);
+            // Kiểm tra nếu date là một giá trị không phải NaN (không phải Invalid Date)
+            if (!isNaN(date.getTime())) {
+                const formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} - ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                return formattedDate;
+            } else {
+                return 'Invalid Date';
+            }
+        } catch (error) {
+            console.error('Error formatting time:', error);
+            return 'Invalid Date';
+        }
+    };
+
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
-            {/*Phần danh sách người dùng*/}
+            {/* Phần danh sách người dùng */}
             <div className={`sidebar bg-light border-right ${isChatVisible ? 'sidebar-hidden' : ''}`}>
                 <div className="p-4">
                     <h5>App Chat RealTime NLU</h5>
@@ -135,15 +205,14 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 </div>
             </div>
 
-            {/*Phần chat*/}
+            {/* Phần chat */}
             <div className={`main flex-grow-1 ${isChatVisible ? 'main-visible' : ''}`}>
                 <div className="chat-body d-flex flex-column h-100">
                     <div
                         className="chat-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                         <div className="media align-items-center">
                             <div className="media-body d-flex align-items-center">
-
-                                {/*Nút quay lại từ chat tới danh sách người dùng*/}
+                                {/* Nút quay lại từ chat tới danh sách người dùng */}
                                 <a style={{margin: '0 8px 0 4px'}} className="text-muted px-0" href="#"
                                    onClick={() => setIsChatVisible(false)}>
                                     <i className="fa-solid fa-arrow-left"></i>
@@ -155,18 +224,27 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                 }} className="mb-0 ml-2">{recipient || 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
                             </div>
                         </div>
+                        {/* Nút xóa tin nhắn */}
+                        <button className="btn btn-link text-danger" onClick={deleteMessages}>
+                            <i className="fa-solid fa-trash"></i>
+                        </button>
                     </div>
+
+                    {/*// Phần hiển thị tin nhắn*/}
                     <div className="chat-content flex-grow-1 p-4 overflow-auto">
-                        {messages.map((msg, index) => (
-                            <div key={index}
-                                 className={`message ${msg.startsWith('You:') ? 'text-right' : 'text-left'}`}>
-                                <div
-                                    className={`message-body ${msg.startsWith('You:') ? 'bg-primary text-white' : 'bg-light'}`}>
-                                    {msg.replace('You: ', '')}
+                        {(messages[recipient] || []).map((msg, index) => (
+                            <div key={index} className={`message ${msg.isSent ? 'text-right' : 'text-left'}`}>
+                                <div className={`message-content ${msg.isSent ? 'bg-primary text-white' : 'bg-light'}`}>
+                                    {msg.content && msg.content.replace('Bạn: ', '')}
+                                    <div className="mt-1">
+                                        <small className="opacity-65">{formatMessageTime(msg.timestamp)}</small>
+                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
+
+                    {/* Phần nhập tin nhắn */}
                     <div className="chat-footer border-top py-3 px-4">
                         <form className="d-flex align-items-center" onSubmit={(e) => {
                             e.preventDefault();
