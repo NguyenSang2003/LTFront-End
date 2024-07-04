@@ -25,6 +25,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [recipients, setRecipients] = useState<User[]>([]);
     const [isChatVisible, setIsChatVisible] = useState(false);
     const navigate = useNavigate();
+    const [editIndex, setEditIndex] = useState<number | null>(null); // Trạng thái cho sửa tin nhắn
+    const [dropdownVisible, setDropdownVisible] = useState<number | null>(null); // Trạng thái cho menu xổ xuống
+
 
     useEffect(() => {
         if (socket) {
@@ -77,6 +80,16 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     // Hàm gửi tin nhắn đi
     const sendMessageHandler = () => {
         if (input && recipient && socket) {
+            if (editIndex !== null) {
+                const newMessages = {...messages};
+                newMessages[recipient][editIndex].content = `Bạn: ${input}`;
+                setMessages(newMessages);
+                localStorage.setItem('messages', JSON.stringify(newMessages));
+                setEditIndex(null);
+                setInput("");
+                return;
+            }
+
             const chatMessage = {
                 action: "onchat",
                 data: {
@@ -149,6 +162,29 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
+    // Hàm xử lý sửa tin nhắn
+    const handleEditMessage = (index: number) => {
+        setInput(messages[recipient][index].content.replace('Bạn: ', ''));
+        setEditIndex(index);
+    };
+
+    // Hàm xử lý xóa tin nhắn lẻ
+    const handleDeleteMessage = (index: number) => {
+        if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này? Điều này là không thể khôi phục được!!!")) {
+            const newMessages = {...messages};
+            newMessages[recipient].splice(index, 1);
+            setMessages(newMessages);
+            localStorage.setItem('messages', JSON.stringify(newMessages));
+        }
+    };
+
+
+    // Hàm xử lý hiển thị menu xổ xuống
+    const toggleDropdown = (index: number) => {
+        setDropdownVisible(dropdownVisible === index ? null : index);
+    };
+
+
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
             {/* Phần danh sách người dùng */}
@@ -215,11 +251,37 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     {/* Phần hiển thị tin nhắn */}
                     <div className="chat-content flex-grow-1 p-4 overflow-auto">
                         {(messages[recipient] || []).map((msg, index) => (
-                            <div key={index} className="message text-right">
-                                <div className="message-content bg-primary text-white">
+                            <div key={index} className="message text-right position-relative">
+                                <div className="message-content bg-primary text-white d-inline-block p-2 rounded">
                                     {msg.content}
                                     <div className="mt-1">
                                         <small className="opacity-65">{formatMessageTime(msg.timestamp)}</small>
+                                    </div>
+
+                                    <div className="dropdown">
+                                        {/* Nút dropdown */}
+                                        <button className="text-muted opacity-60 ml-3"
+                                                type="button" id={`dropdownMenuButton-${index}`}
+                                                data-toggle="dropdown" aria-haspopup="true"
+                                                aria-expanded={dropdownVisible === index}
+                                                onClick={() => toggleDropdown(index)}>
+                                            <i className="fa fa-ellipsis-h"></i>
+                                        </button>
+                                        <div
+                                            className={`dropdown-menu ${dropdownVisible === index ? 'show' : ''}`}
+                                            aria-labelledby={`dropdownMenuButton-${index}`}>
+                                            {/* Nút sửa tin nhắn */}
+                                            <button className="dropdown-item d-flex align-items-center"
+                                                    onClick={() => handleEditMessage(index)}>
+                                                <i style={{marginRight: '6px'}} className="fa fa-edit"></i> Sửa
+                                            </button>
+
+                                            {/* Nút Xóa tin nhắn */}
+                                            <button className="dropdown-item d-flex align-items-center"
+                                                    onClick={() => handleDeleteMessage(index)}>
+                                                <i style={{marginRight: '6px'}} className="fa fa-trash"></i> Xóa
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
