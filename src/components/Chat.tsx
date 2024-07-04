@@ -1,7 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {sendMessage} from '../utils/websocket';
-import {format} from 'date-fns';
 import '../assets/css/template.min.css';
 
 interface ChatProps {
@@ -17,7 +16,6 @@ interface User {
 interface Message {
     content: string;
     timestamp: Date;
-    isSent: boolean; // Thêm trường này để phân biệt tin nhắn gửi và nhận
 }
 
 const Chat: React.FC<ChatProps> = ({socket}) => {
@@ -33,7 +31,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 console.log("Received message: ", data);
-                if (data.event === "RECEIVE_CHAT") {
+                if (data.event === "RECEIVE_CHAT" || (data.event === "SEND_CHAT" && data.status === "success")) {
                     const newMessages = {...messages};
                     if (!newMessages[recipient]) {
                         newMessages[recipient] = [];
@@ -41,19 +39,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     newMessages[recipient].push({
                         content: data.data.mes,
                         timestamp: new Date(),
-                        isSent: false
-                    });
-                    setMessages(newMessages);
-                    localStorage.setItem('messages', JSON.stringify(newMessages));
-                } else if (data.event === "SEND_CHAT" && data.status === "success") {
-                    const newMessages = {...messages};
-                    if (!newMessages[recipient]) {
-                        newMessages[recipient] = [];
-                    }
-                    newMessages[recipient].push({
-                        content: `Bạn: ${data.data.mes}`,
-                        timestamp: new Date(),
-                        isSent: true
                     });
                     setMessages(newMessages);
                     localStorage.setItem('messages', JSON.stringify(newMessages));
@@ -81,6 +66,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     }, [socket, navigate, recipient, messages]);
 
+    // Để lưu lại tin nhắn
     useEffect(() => {
         const storedMessages = localStorage.getItem('messages');
         if (storedMessages) {
@@ -113,7 +99,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             newMessages[recipient].push({
                 content: `Bạn: ${input}`,
                 timestamp: new Date(),
-                isSent: true
             });
             setMessages(newMessages);
             localStorage.setItem('messages', JSON.stringify(newMessages));
@@ -123,7 +108,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     // Hàm xử lý khi ấn vào người dùng
     const handleRecipientClick = (rec: string) => {
         setRecipient(rec);
-        setIsChatVisible(true); // Hiển thị phần chat
+        setIsChatVisible(true); //Hiển thị phần chat khi thu nhỏ màn hình
     };
 
     // Hàm tải lại danh sách người dùng
@@ -138,9 +123,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-    // Hàm xóa tin nhắn với xác nhận
+    // Hàm xóa toàn bộ đoạn tin nhắn
     const deleteMessages = () => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này?")) {
+        if (window.confirm("Bạn có chắc chắn muốn xóa đoạn tin nhắn này?")) {
             const newMessages = {...messages};
             newMessages[recipient] = [];
             setMessages(newMessages);
@@ -149,11 +134,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     };
 
     // Hàm định dạng thời gian tin nhắn
-    // Định nghĩa hàm formatMessageTime với xử lý lỗi
     const formatMessageTime = (timestamp: string | Date): string => {
         try {
             const date = new Date(timestamp);
-            // Kiểm tra nếu date là một giá trị không phải NaN (không phải Invalid Date)
             if (!isNaN(date.getTime())) {
                 const formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} - ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
                 return formattedDate;
@@ -173,29 +156,27 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 <div className="p-4">
                     <h5>App Chat RealTime NLU</h5>
                 </div>
+
+                {/*Thanh tìm kiếm người dùng*/}
                 <div className="p-4">
                     <input type="text" className="form-control" placeholder="Tìm kiếm người dùng"/>
                 </div>
                 <div className="d-flex justify-content-between align-items-center p-4">
                     <h6>Danh sách người dùng</h6>
-                    <button style={{
-                        fontFamily: 'sans-serif',
-                        fontWeight: 'bold'
-                    }} className="btn btn-success" onClick={refreshUserList}>Tải lại
+
+                    {/* Nút tải lại danh sách người dùng */}
+                    <button style={{fontFamily: 'sans-serif', fontWeight: 'bold'}} className="btn btn-success"
+                            onClick={refreshUserList}>Tải lại
                     </button>
                 </div>
+                {/* Hiển thị lên danh sách các người dùng */}
                 <div className="recipients list-group list-group-flush">
                     {recipients.length > 0 ? (
                         recipients.map((rec) => (
-                            <div style={{
-                                color: '#75e38e',
-                                fontSize: '18px',
-                                fontWeight: 'bold'
-                            }}
+                            <div style={{color: '#75e38e', fontSize: '18px', fontWeight: 'bold'}}
                                  key={rec.name}
                                  className={`list-group-item list-group-item-action ${rec.name === recipient ? 'active' : ''}`}
-                                 onClick={() => handleRecipientClick(rec.name)}
-                            >
+                                 onClick={() => handleRecipientClick(rec.name)}>
                                 {rec.name}
                             </div>
                         ))
@@ -205,37 +186,38 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 </div>
             </div>
 
-            {/* Phần chat */}
+            {/* Phần khung chat */}
             <div className={`main flex-grow-1 ${isChatVisible ? 'main-visible' : ''}`}>
                 <div className="chat-body d-flex flex-column h-100">
+
+                    {/* Phần header của khung chat */}
                     <div
                         className="chat-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                         <div className="media align-items-center">
                             <div className="media-body d-flex align-items-center">
+
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
                                 <a style={{margin: '0 8px 0 4px'}} className="text-muted px-0" href="#"
                                    onClick={() => setIsChatVisible(false)}>
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </a>
-                                <h6 style={{
-                                    margin: '1px',
-                                    fontSize: '18px',
-                                    fontWeight: 'bold'
-                                }} className="mb-0 ml-2">{recipient || 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
+                                <h6 style={{margin: '1px', fontSize: '18px', fontWeight: 'bold'}}
+                                    className="mb-0 ml-2">{recipient || 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
                             </div>
                         </div>
-                        {/* Nút xóa tin nhắn */}
+
+                        {/* Nút Xóa đoạn chat */}
                         <button className="btn btn-link text-danger" onClick={deleteMessages}>
                             <i className="fa-solid fa-trash"></i>
                         </button>
                     </div>
 
-                    {/*// Phần hiển thị tin nhắn*/}
+                    {/* Phần hiển thị tin nhắn */}
                     <div className="chat-content flex-grow-1 p-4 overflow-auto">
                         {(messages[recipient] || []).map((msg, index) => (
-                            <div key={index} className={`message ${msg.isSent ? 'text-right' : 'text-left'}`}>
-                                <div className={`message-content ${msg.isSent ? 'bg-primary text-white' : 'bg-light'}`}>
-                                    {msg.content && msg.content.replace('Bạn: ', '')}
+                            <div key={index} className="message text-right">
+                                <div className="message-content bg-primary text-white">
+                                    {msg.content}
                                     <div className="mt-1">
                                         <small className="opacity-65">{formatMessageTime(msg.timestamp)}</small>
                                     </div>
@@ -244,22 +226,15 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         ))}
                     </div>
 
-                    {/* Phần nhập tin nhắn */}
+                    {/* Trường nhập tin nhắn */}
                     <div className="chat-footer border-top py-3 px-4">
                         <form className="d-flex align-items-center" onSubmit={(e) => {
                             e.preventDefault();
                             sendMessageHandler();
                         }}>
-                            <input
-                                type="text"
-                                className="form-control mr-3"
-                                placeholder="Nhập tin nhắn..."
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                            />
-                            <button className="btn btn-primary" type="submit">
-                                Gửi
-                            </button>
+                            <input type="text" className="form-control mr-3" placeholder="Nhập tin nhắn..."
+                                   value={input} onChange={(e) => setInput(e.target.value)}/>
+                            <button className="btn btn-primary" type="submit">Gửi</button>
                         </form>
                     </div>
                 </div>
