@@ -4,6 +4,8 @@ import {Link} from 'react-router-dom';
 import {sendMessage} from '../utils/websocket';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../assets/css/template.min.css';
+import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
+
 
 interface LoginProps {
     socket: WebSocket | null;
@@ -15,8 +17,8 @@ const Login: React.FC<LoginProps> = ({socket}) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Kiểm tra xem có thông tin đăng nhập trong localStorage không
-        const savedUser = localStorage.getItem('user');
+        // Lấy thông tin đăng nhập từ localStorage
+        const savedUser = getCurrentUser();
         const savedCode = localStorage.getItem('reloginCode');
         // Thực hiện Relogin nếu còn tồn tại của mã ReloginCode trong localStorage
         if (savedUser && savedCode && socket) {
@@ -48,15 +50,20 @@ const Login: React.FC<LoginProps> = ({socket}) => {
 
     useEffect(() => {
         if (socket) {
+            // Xử lý các message được gửi tới
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 if (data.event === 'LOGIN' && data.status === 'success') {
                     console.log('Received message: ', data);
-                    localStorage.setItem('user', user);  // Lưu thông tin người dùng
+                    // localStorage.setItem('user', user);
+                    setCurrentUser(user);  // Lưu thông tin người dùng qa lớp userStorage
                     localStorage.setItem('reloginCode', data.data.RE_LOGIN_CODE);  // Lưu mã relogin
-                    navigate('/chat');//đăng nhập thành công thì chuyển tới trang Chat
+                    navigate('/chat');
+                    //Đăng nhập sai thì hiển thị thông báo tại đây
                 } else if (data.event === 'LOGIN' && data.status === 'error') {
+                    alert("Tài khoản hoặc mật khẩu sai. Hãy thử lại.");
                     alert(data.mes);
+                    // Relogin thành công thì hiển thị thông báo
                 } else if (data.event === 'RE_LOGIN' && data.status === 'success') {
                     console.log('Relogin successful: ', data);
                     navigate('/chat');
@@ -77,7 +84,10 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                     <div className="col-12 col-md-5 col-lg-4 py-8 py-md-11">
                         <h1 className="font-bold text-center">Đăng nhập</h1>
                         <p className="text-center mb-6">Chào mừng đến App Chat RealTime NLU.</p>
+
+                        {/* Form đăng nhập */}
                         <form className="mb-6" onSubmit={handleLogin}>
+                            {/* Điền tên tài khoản */}
                             <div className="form-group">
                                 <label htmlFor="username" className="sr-only">Tên đăng nhập</label>
                                 <input
@@ -90,6 +100,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                                     required
                                 />
                             </div>
+                            {/* Điền mật khẩu */}
                             <div className="form-group">
                                 <label htmlFor="password" className="sr-only">Mật khẩu</label>
                                 <input
@@ -104,6 +115,8 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                             </div>
                             <button className="btn btn-lg btn-block btn-primary" type="submit">Đăng nhập</button>
                         </form>
+
+                        {/* Điều hướng tới đăng ký */}
                         <p className="text-center">
                             Chưa có tài khoản? <Link to="/signup">Đăng ký tại đây</Link>.
                         </p>
