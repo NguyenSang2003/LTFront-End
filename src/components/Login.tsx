@@ -50,7 +50,7 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
                 if (data.event === 'LOGIN' && data.status === 'success') {
                     console.log('Received message: ', data);
                     localStorage.setItem('user', user);
-                    localStorage.setItem('userName', user); // Store userName for Chat component
+                    localStorage.setItem('userName', user);
                     localStorage.setItem('reloginCode', data.data.RE_LOGIN_CODE);
                     navigate('/chat');
                 } else if (data.event === 'LOGIN' && data.status === 'error') {

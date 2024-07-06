@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {Link, useNavigate} from 'react-router-dom';
 import { sendMessage } from '../utils/websocket';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../assets/css/template.min.css';
@@ -17,7 +17,7 @@ const Register: React.FC<RegisterProps> = ({ socket }) => {
     const handleRegister = (e: React.FormEvent) => {
         e.preventDefault();
         if (password !== confirmPassword) {
-            alert('Passwords do not match');
+            alert('Mật khẩu không giống nhau, vui lòng kiếm tra lại');
             return;
         }
 
@@ -38,8 +38,8 @@ const Register: React.FC<RegisterProps> = ({ socket }) => {
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 if (data.event === 'REGISTER' && data.status === 'success') {
-                    alert('Registration successful! Please log in.');
-                    navigate('/');
+                    alert('Đăng ký thành công');
+                    navigate('/'); // Chuyển hướng sang login sau khi đăng ký thành công
                 } else if (data.event === 'REGISTER' && data.status === 'error') {
                     alert(data.mes);
                 }
@@ -97,6 +97,9 @@ const Register: React.FC<RegisterProps> = ({ socket }) => {
                             </div>
                             <button className="btn btn-lg btn-block btn-primary" type="submit">Đăng ký</button>
                         </form>
+                        <p className="text-center">
+                            Đã có tài khoản? <Link to="/login">Đăng nhập</Link>.
+                        </p>
                     </div>
                 </div>
             </div>

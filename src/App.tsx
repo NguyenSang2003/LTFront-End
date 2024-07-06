@@ -2,7 +2,7 @@ import React, {useState, useEffect} from 'react';
 import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import Login from './components/Login';
 import Chat from './components/Chat';
-import Register from './components/Register'; // Import the Register component
+import Register from './components/Register';
 import {connectWebSocket} from './utils/websocket';
 
 const App: React.FC = () => {
@@ -20,7 +20,7 @@ const App: React.FC = () => {
             <Routes>
                 <Route path="/" element={<Login socket={socket}/>}/>
                 <Route path="/chat" element={<Chat socket={socket}/>}/>
-                <Route path="/register" element={<Register socket={socket}/>}/> {/* Add this line */}
+                <Route path="/register" element={<Register socket={socket}/>}/>
             </Routes>
         </Router>
     );

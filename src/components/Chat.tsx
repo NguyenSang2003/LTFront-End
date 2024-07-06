@@ -29,7 +29,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [editIndex, setEditIndex] = useState<number | null>(null); // Trạng thái cho sửa tin nhắn
     const [dropdownVisible, setDropdownVisible] = useState<number | null>(null); // Trạng thái cho menu xổ xuống
 
-
     useEffect(() => {
         const loggedInUserName = localStorage.getItem('userName');
         if (loggedInUserName) {
@@ -125,10 +124,10 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     // Hàm xử lý khi ấn vào người dùng
     const handleRecipientClick = (rec: string) => {
         setRecipient(rec);
-        setMessages([]);
         setIsChatVisible(true); //Hiển thị phần chat khi thu nhỏ màn hình
     };
 
+    //Hàm sử lý lấy danh sách người dùng
     const refreshUserList = () => {
         if (socket) {
             sendMessage(socket, {
@@ -139,11 +138,13 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             });
         }
     };
-// Hàm đăng 
+
+    // Hàm xử lý đăng xuất
     const handleLogout = () => {
         localStorage.removeItem('userName');
         localStorage.removeItem('user');
         localStorage.removeItem('reloginCode');
+        localStorage.removeItem('messages');
 
         if (socket) {
             sendMessage(socket, {
@@ -153,12 +154,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 }
             });
         }
-
-        navigate('/');
+        window.location.href = '/'; // sau khi đăng xuất sẽ chuyển về đăng nhập
     };
-
-    return (
-        <div className="d-flex flex-column flex-md-row vh-100">
 
     // Hàm xóa toàn bộ đoạn tin nhắn
     const deleteMessages = () => {
@@ -202,13 +199,12 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-
     // Hàm xử lý hiển thị menu xổ xuống
     const toggleDropdown = (index: number) => {
         setDropdownVisible(dropdownVisible === index ? null : index);
     };
 
-
+    //Giao diện chat
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
             {/* Phần danh sách người dùng */}
@@ -225,7 +221,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <h6>{userName || 'Loading...'}</h6>
                     <button
                         style={{ fontFamily: 'sans-serif', fontWeight: 'bold'
-                    }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
+                        }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
                     </button>
                 </div>
                 <div className="d-flex justify-content-between align-items-center p-4">
@@ -252,7 +248,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     )}
                 </div>
             </div>
-
 
             {/* Phần khung chat */}
             <div className={`main flex-grow-1 ${isChatVisible ? 'main-visible' : ''}`}>
