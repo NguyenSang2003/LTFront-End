@@ -144,7 +144,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         localStorage.removeItem('userName');
         localStorage.removeItem('user');
         localStorage.removeItem('reloginCode');
-        localStorage.removeItem('messages');
 
         if (socket) {
             sendMessage(socket, {
