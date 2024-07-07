@@ -3,6 +3,7 @@ import {useNavigate} from 'react-router-dom';
 import {sendMessage} from '../utils/websocket';
 import '../assets/css/template.min.css';
 import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
+import {formatMessageTime} from '../utils/timeFormatter';
 
 interface ChatProps {
     socket: WebSocket | null;
@@ -29,7 +30,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [editIndex, setEditIndex] = useState<number | null>(null);
     const [dropdownVisible, setDropdownVisible] = useState<number | null>(null);
     const navigate = useNavigate();
-
 
     useEffect(() => {
         if (socket) {
@@ -148,22 +148,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             newMessages[recipient] = [];
             setMessages(newMessages);
             localStorage.setItem('messages', JSON.stringify(newMessages));
-        }
-    };
-
-    // Hàm định dạng thời gian tin nhắn
-    const formatMessageTime = (timestamp: string | Date): string => {
-        try {
-            const date = new Date(timestamp);
-            if (!isNaN(date.getTime())) {
-                const formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} - ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-                return formattedDate;
-            } else {
-                return 'Invalid Date';
-            }
-        } catch (error) {
-            console.error('Error formatting time:', error);
-            return 'Invalid Date';
         }
     };
 

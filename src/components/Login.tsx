@@ -127,4 +127,5 @@ const Login: React.FC<LoginProps> = ({socket}) => {
     );
 };
 
+// @ts-ignore
 export default Login;
