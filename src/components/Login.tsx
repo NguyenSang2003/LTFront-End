@@ -20,7 +20,6 @@ const Login: React.FC<LoginProps> = ({socket}) => {
         // Lấy thông tin đăng nhập từ localStorage
         const savedUser = getCurrentUser();
         const savedCode = localStorage.getItem('reloginCode');
-        // Thực hiện Relogin nếu còn tồn tại của mã ReloginCode trong localStorage
         if (savedUser && savedCode && socket) {
             const reloginMessage = {
                 action: 'onchat',
@@ -33,7 +32,6 @@ const Login: React.FC<LoginProps> = ({socket}) => {
         }
     }, [socket]);
 
-    // Hàm thực hiện việc đăng nhập
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         if (user && pass && socket) {
@@ -57,12 +55,13 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                     console.log('Received message: ', data);
                     // localStorage.setItem('user', user);
                     setCurrentUser(user);  // Lưu thông tin người dùng qa lớp userStorage
+                    localStorage.setItem('userName', user);
+
                     localStorage.setItem('reloginCode', data.data.RE_LOGIN_CODE);  // Lưu mã relogin
                     navigate('/chat');
                     //Đăng nhập sai thì hiển thị thông báo tại đây
                 } else if (data.event === 'LOGIN' && data.status === 'error') {
                     alert("Tài khoản hoặc mật khẩu sai. Hãy thử lại.");
-                    alert(data.mes);
                     // Relogin thành công thì hiển thị thông báo
                 } else if (data.event === 'RE_LOGIN' && data.status === 'success') {
                     console.log('Relogin successful: ', data);
@@ -118,7 +117,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
 
                         {/* Điều hướng tới đăng ký */}
                         <p className="text-center">
-                            Chưa có tài khoản? <Link to="/signup">Đăng ký tại đây</Link>.
+                            Chưa có tài khoản? <Link to="/register">Đăng ký tại đây</Link>.
                         </p>
                     </div>
                 </div>

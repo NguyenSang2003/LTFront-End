@@ -30,8 +30,15 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [editIndex, setEditIndex] = useState<number | null>(null);
     const [dropdownVisible, setDropdownVisible] = useState<number | null>(null);
     const navigate = useNavigate();
+    const [userName, setUserName] = useState<string | null>(null);
+
 
     useEffect(() => {
+        const loggedInUserName = localStorage.getItem('userName');
+        if (loggedInUserName) {
+            setUserName(loggedInUserName);
+        }
+
         if (socket) {
             // Hàm xử lý các tin nhắn được gửi tới
             const handleMessage = (msg: MessageEvent) => {
@@ -56,7 +63,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 }
             };
 
-            // Gửi yêu cầu lấy ra danh sách người dùng
             sendMessage(socket, {
                 action: "onchat",
                 data: {
@@ -80,7 +86,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     }, []);
 
-    // Hàm gửi tin nhắn đi
     const sendMessageHandler = () => {
         if (input && recipient && socket) {
             if (editIndex !== null) {
@@ -128,7 +133,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         setIsChatVisible(true); //Hiển thị phần chat khi thu nhỏ màn hình
     };
 
-    // Hàm tải lại danh sách người dùng
+    //Hàm sử lý lấy danh sách người dùng
     const refreshUserList = () => {
         if (socket) {
             sendMessage(socket, {
@@ -141,6 +146,26 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     };
 
     // Hàm xóa cuộc hội thoại
+
+    // Hàm xử lý đăng xuất
+    const handleLogout = () => {
+            localStorage.removeItem('userName');
+            localStorage.removeItem('user');
+            localStorage.removeItem('reloginCode');
+
+            if (socket) {
+                sendMessage(socket, {
+                    action: "onchat",
+                    data: {
+                        event: "LOGOUT",
+                    }
+                });
+            }
+            window.location.href = '/'; // sau khi đăng xuất sẽ chuyển về đăng nhập
+        }
+    ;
+
+    // Hàm xóa toàn bộ đoạn tin nhắn
     const deleteMessages = () => {
         if (window.confirm("Bạn có chắc chắn muốn xóa cuộc hội thoại này chứ? " +
             "Điều này là không thể khôi phục được!!!")) {
@@ -174,24 +199,26 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
     // Hàm xử lý kết bạn
     const handleAddFriend = () => {
-        if (newUser && socket) {
-            const chatMessage = {
-                action: "onchat",
-                data: {
-                    event: "SEND_CHAT",
+            if (newUser && socket) {
+                const chatMessage = {
+                    action: "onchat",
                     data: {
-                        type: "people",
-                        to: newUser,
-                        mes: `Xin chào hãy làm quen đi tôi là "${getCurrentUser()}" bạn có thể gõ tên tôi trong 
+                        event: "SEND_CHAT",
+                        data: {
+                            type: "people",
+                            to: newUser,
+                            mes: `Xin chào hãy làm quen đi tôi là "${getCurrentUser()}" bạn có thể gõ tên tôi trong 
                         thanh kết bạn, như thế chúng ta sẽ nhắn tin được với nhau`,
+                        }
                     }
-                }
-            };
-            console.log("Sending friend request message: ", chatMessage);
-            sendMessage(socket, chatMessage);
-            setNewUser("");
+                };
+                console.log("Sending friend request message: ", chatMessage);
+                sendMessage(socket, chatMessage);
+                setNewUser("");
+            }
         }
-    };
+    ;
+
 
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
@@ -221,6 +248,14 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     </div>
                 </div>
 
+                <div className="d-flex justify-content-between align-items-center p-4">
+                    <h6>{userName || 'Loading...'}</h6>
+                    <button
+                        style={{
+                            fontFamily: 'sans-serif', fontWeight: 'bold'
+                        }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
+                    </button>
+                </div>
                 <div className="d-flex justify-content-between align-items-center p-4">
                     <h6>Danh sách người dùng</h6>
 
@@ -255,6 +290,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <div
                         className="chat-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                         <div className="media align-items-center">
+
                             <div className="media-body d-flex align-items-center">
 
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
