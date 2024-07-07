@@ -1,6 +1,6 @@
-import React, {useEffect, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {sendMessage} from '../utils/websocket';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { sendMessage } from '../utils/websocket';
 import '../assets/css/template.min.css';
 
 interface ChatProps {
@@ -24,12 +24,17 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [recipient, setRecipient] = useState("");
     const [recipients, setRecipients] = useState<User[]>([]);
     const [isChatVisible, setIsChatVisible] = useState(false);
+    const [userName, setUserName] = useState<string | null>(null);
     const navigate = useNavigate();
     const [editIndex, setEditIndex] = useState<number | null>(null); // Trạng thái cho sửa tin nhắn
     const [dropdownVisible, setDropdownVisible] = useState<number | null>(null); // Trạng thái cho menu xổ xuống
 
-
     useEffect(() => {
+        const loggedInUserName = localStorage.getItem('userName');
+        if (loggedInUserName) {
+            setUserName(loggedInUserName);
+        }
+
         if (socket) {
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
@@ -53,7 +58,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 }
             };
 
-            // Gửi yêu cầu lấy ra danh sách người dùng
             sendMessage(socket, {
                 action: "onchat",
                 data: {
@@ -77,7 +81,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     }, []);
 
-    // Hàm gửi tin nhắn đi
     const sendMessageHandler = () => {
         if (input && recipient && socket) {
             if (editIndex !== null) {
@@ -124,7 +127,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         setIsChatVisible(true); //Hiển thị phần chat khi thu nhỏ màn hình
     };
 
-    // Hàm tải lại danh sách người dùng
+    //Hàm sử lý lấy danh sách người dùng
     const refreshUserList = () => {
         if (socket) {
             sendMessage(socket, {
@@ -134,6 +137,23 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 }
             });
         }
+    };
+
+    // Hàm xử lý đăng xuất
+    const handleLogout = () => {
+        localStorage.removeItem('userName');
+        localStorage.removeItem('user');
+        localStorage.removeItem('reloginCode');
+
+        if (socket) {
+            sendMessage(socket, {
+                action: "onchat",
+                data: {
+                    event: "LOGOUT",
+                }
+            });
+        }
+        window.location.href = '/'; // sau khi đăng xuất sẽ chuyển về đăng nhập
     };
 
     // Hàm xóa toàn bộ đoạn tin nhắn
@@ -178,13 +198,12 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-
     // Hàm xử lý hiển thị menu xổ xuống
     const toggleDropdown = (index: number) => {
         setDropdownVisible(dropdownVisible === index ? null : index);
     };
 
-
+    //Giao diện chat
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
             {/* Phần danh sách người dùng */}
@@ -196,6 +215,13 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 {/*Thanh tìm kiếm người dùng*/}
                 <div className="p-4">
                     <input type="text" className="form-control" placeholder="Tìm kiếm người dùng"/>
+                </div>
+                <div className="d-flex justify-content-between align-items-center p-4">
+                    <h6>{userName || 'Loading...'}</h6>
+                    <button
+                        style={{ fontFamily: 'sans-serif', fontWeight: 'bold'
+                        }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
+                    </button>
                 </div>
                 <div className="d-flex justify-content-between align-items-center p-4">
                     <h6>Danh sách người dùng</h6>
@@ -230,6 +256,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <div
                         className="chat-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                         <div className="media align-items-center">
+
                             <div className="media-body d-flex align-items-center">
 
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
