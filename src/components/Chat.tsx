@@ -30,15 +30,10 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [editIndex, setEditIndex] = useState<number | null>(null);
     const [dropdownVisible, setDropdownVisible] = useState<number | null>(null);
     const navigate = useNavigate();
-    const [userName, setUserName] = useState<string | null>(null);
-
+    const user = getCurrentUser();
+    const [isEditing, setIsEditing] = useState(false); // Biến sửa tin nhắn
 
     useEffect(() => {
-        const loggedInUserName = localStorage.getItem('userName');
-        if (loggedInUserName) {
-            setUserName(loggedInUserName);
-        }
-
         if (socket) {
             // Hàm xử lý các tin nhắn được gửi tới
             const handleMessage = (msg: MessageEvent) => {
@@ -86,16 +81,19 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     }, []);
 
+    // Xử lý việc gửi tin nhắn
     const sendMessageHandler = () => {
         if (input && recipient && socket) {
+
+            // Nếu là đang chỉnh sửa tin nhắn
             if (editIndex !== null) {
                 const newMessages = {...messages};
-                // newMessages[recipient][editIndex].content = `Bạn: ${input}`;
-                newMessages[recipient][editIndex].content = `<span style="font-weight: bold; color: red;">Bạn:</span> ${input}`;
+                newMessages[recipient][editIndex].content = `Bạn: ${input}`;
                 setMessages(newMessages);
                 localStorage.setItem('messages', JSON.stringify(newMessages));
                 setEditIndex(null);
                 setInput("");
+                setIsEditing(false); // Ẩn nút X đỏ đi
                 return;
             }
 
@@ -145,11 +143,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-    // Hàm xóa cuộc hội thoại
-
     // Hàm xử lý đăng xuất
     const handleLogout = () => {
-            localStorage.removeItem('userName');
             localStorage.removeItem('user');
             localStorage.removeItem('reloginCode');
 
@@ -165,7 +160,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     ;
 
-    // Hàm xóa toàn bộ đoạn tin nhắn
+    // Hàm xóa cuộc hội thoại
     const deleteMessages = () => {
         if (window.confirm("Bạn có chắc chắn muốn xóa cuộc hội thoại này chứ? " +
             "Điều này là không thể khôi phục được!!!")) {
@@ -174,12 +169,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             setMessages(newMessages);
             localStorage.setItem('messages', JSON.stringify(newMessages));
         }
-    };
-
-    // Hàm xử lý sửa tin nhắn
-    const handleEditMessage = (index: number) => {
-        setInput(messages[recipient][index].content.replace('Bạn: ', ''));
-        setEditIndex(index);
     };
 
     // Hàm xử lý xóa tin nhắn lẻ
@@ -192,6 +181,27 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
+    // Hàm xử lý chỉnh sửa tin nhắn
+    const handleEditMessage = (index: number) => {
+        const message = messages[recipient][index];
+        if (message.content.startsWith('Bạn: ')) {
+            setInput(message.content.replace('Bạn: ', ''));
+            setEditIndex(index);
+            setIsEditing(true);
+        } else {
+            alert("Bạn chỉ có thể sửa tin nhắn của chính bạn.");
+        }
+    };
+
+    // Hàm thoát khỏi chỉnh sửa tin nhắn
+    const cancelEditMessage = () => {
+        if (window.confirm("Bạn có chắc chắn muốn thoát, không muốn sửa tin nhắn nữa?")) {
+            setInput("");
+            setEditIndex(null);
+            setIsEditing(false);
+        }
+    };
+
     // Hàm xử lý hiển thị menu xổ xuống
     const toggleDropdown = (index: number) => {
         setDropdownVisible(dropdownVisible === index ? null : index);
@@ -199,25 +209,24 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
     // Hàm xử lý kết bạn
     const handleAddFriend = () => {
-            if (newUser && socket) {
-                const chatMessage = {
-                    action: "onchat",
+        if (newUser && socket) {
+            const chatMessage = {
+                action: "onchat",
+                data: {
+                    event: "SEND_CHAT",
                     data: {
-                        event: "SEND_CHAT",
-                        data: {
-                            type: "people",
-                            to: newUser,
-                            mes: `Xin chào hãy làm quen đi tôi là "${getCurrentUser()}" bạn có thể gõ tên tôi trong 
+                        type: "people",
+                        to: newUser,
+                        mes: `Xin chào hãy làm quen đi tôi là "${getCurrentUser()}" bạn có thể gõ tên tôi trong 
                         thanh kết bạn, như thế chúng ta sẽ nhắn tin được với nhau`,
-                        }
                     }
-                };
-                console.log("Sending friend request message: ", chatMessage);
-                sendMessage(socket, chatMessage);
-                setNewUser("");
-            }
+                }
+            };
+            console.log("Sending friend request message: ", chatMessage);
+            sendMessage(socket, chatMessage);
+            setNewUser("");
         }
-    ;
+    };
 
 
     return (
@@ -227,6 +236,16 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             <div className={`sidebar bg-light border-right ${isChatVisible ? 'sidebar-hidden' : ''}`}>
                 <div className="p-4">
                     <h5>App Chat RealTime NLU</h5>
+                </div>
+
+                {/* Tên người dùng và đăng xuất */}
+                <div className="d-flex justify-content-between align-items-center p-4">
+                    <h6>{user || 'Loading...'}</h6>
+                    <button
+                        style={{
+                            fontFamily: 'sans-serif', fontWeight: 'bold'
+                        }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
+                    </button>
                 </div>
 
                 {/* Chức năng tìm kiếm người dùng */}
@@ -248,16 +267,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     </div>
                 </div>
 
+                {/* Danh sách bạn bè */}
                 <div className="d-flex justify-content-between align-items-center p-4">
-                    <h6>{userName || 'Loading...'}</h6>
-                    <button
-                        style={{
-                            fontFamily: 'sans-serif', fontWeight: 'bold'
-                        }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
-                    </button>
-                </div>
-                <div className="d-flex justify-content-between align-items-center p-4">
-                    <h6>Danh sách người dùng</h6>
+                    <h6>Danh sách bạn bè</h6>
 
                     {/* Nút tải lại danh sách người dùng */}
                     <button style={{fontFamily: 'sans-serif', fontWeight: 'bold'}} className="btn btn-success"
@@ -290,7 +302,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <div
                         className="chat-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                         <div className="media align-items-center">
-
                             <div className="media-body d-flex align-items-center">
 
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
@@ -324,20 +335,31 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                         </button>
                                         {dropdownVisible === index && (
                                             <div className="dropdown-menu show">
-                                                {/* nút sửa tin nhắn */}
-                                                <button className="dropdown-item"
-                                                        onClick={() => handleEditMessage(index)}>Sửa
-                                                </button>
-                                                {/* Nút xóa tin nhắn */}
-                                                <button className="dropdown-item"
-                                                        onClick={() => handleDeleteMessage(index)}>Xóa
-                                                </button>
+                                                {message.content.startsWith('Bạn: ') ? (
+                                                    <>
+                                                        <button className="dropdown-item"
+                                                                onClick={() => handleEditMessage(index)}>
+                                                            <i style={{marginRight: '6px'}} className="fa fa-edit"></i>Sửa
+                                                        </button>
+                                                        <button className="dropdown-item"
+                                                                onClick={() => handleDeleteMessage(index)}>
+                                                            <i style={{marginRight: '6px'}}
+                                                               className="fa fa-trash"></i> Xóa
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button className="dropdown-item"
+                                                            onClick={() => handleDeleteMessage(index)}>
+                                                        <i style={{marginRight: '6px'}} className="fa fa-trash"></i> Xóa
+                                                    </button>
+                                                )}
                                             </div>
                                         )}
                                     </div>
                                 </div>
                                 <p className="mb-0">{message.content}</p>
                             </div>
+
                         ))}
                     </div>
 
@@ -349,8 +371,13 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         }}>
                             <input type="text" className="form-control mr-3" placeholder="Nhập tin nhắn..."
                                    value={input} onChange={(e) => setInput(e.target.value)}/>
+                            {isEditing && (
+                                <button type="button" className="btn btn-danger mr-3"
+                                        onClick={cancelEditMessage}>X</button>
+                            )}
                             <button className="btn btn-primary" type="submit">Gửi</button>
                         </form>
+
                     </div>
                 </div>
             </div>
