@@ -18,6 +18,7 @@ export const connectWebSocket = (onMessage: (msg: MessageEvent) => void): WebSoc
     return socket;
 };
 
+// Hàm gửi tin nhắn đi
 export const sendMessage = (socket: WebSocket, message: object) => {
     if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify(message));

@@ -1,28 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
-import { sendMessage } from '../utils/websocket';
+import React, {useEffect, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {Link} from 'react-router-dom';
+import {sendMessage} from '../utils/websocket';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../assets/css/template.min.css';
+import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
+
 
 interface LoginProps {
     socket: WebSocket | null;
 }
 
-const Login: React.FC<LoginProps> = ({ socket }) => {
+const Login: React.FC<LoginProps> = ({socket}) => {
     const [user, setUser] = useState('');
     const [pass, setPass] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
-        const savedUser = localStorage.getItem('user');
+        // Lấy thông tin đăng nhập từ localStorage
+        const savedUser = getCurrentUser();
         const savedCode = localStorage.getItem('reloginCode');
         if (savedUser && savedCode && socket) {
             const reloginMessage = {
                 action: 'onchat',
                 data: {
                     event: 'RE_LOGIN',
-                    data: { user: savedUser, code: savedCode }
+                    data: {user: savedUser, code: savedCode}
                 }
             };
             sendMessage(socket, reloginMessage);
@@ -36,7 +39,7 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
                 action: 'onchat',
                 data: {
                     event: 'LOGIN',
-                    data: { user, pass }
+                    data: {user, pass}
                 }
             };
             sendMessage(socket, loginMessage);
@@ -45,16 +48,21 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
 
     useEffect(() => {
         if (socket) {
+            // Xử lý các message được gửi tới
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 if (data.event === 'LOGIN' && data.status === 'success') {
                     console.log('Received message: ', data);
-                    localStorage.setItem('user', user);
+                    // localStorage.setItem('user', user);
+                    setCurrentUser(user);  // Lưu thông tin người dùng qa lớp userStorage
                     localStorage.setItem('userName', user);
-                    localStorage.setItem('reloginCode', data.data.RE_LOGIN_CODE);
+
+                    localStorage.setItem('reloginCode', data.data.RE_LOGIN_CODE);  // Lưu mã relogin
                     navigate('/chat');
+                    //Đăng nhập sai thì hiển thị thông báo tại đây
                 } else if (data.event === 'LOGIN' && data.status === 'error') {
-                    alert(data.mes);
+                    alert("Tài khoản hoặc mật khẩu sai. Hãy thử lại.");
+                    // Relogin thành công thì hiển thị thông báo
                 } else if (data.event === 'RE_LOGIN' && data.status === 'success') {
                     console.log('Relogin successful: ', data);
                     navigate('/chat');
@@ -75,7 +83,10 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
                     <div className="col-12 col-md-5 col-lg-4 py-8 py-md-11">
                         <h1 className="font-bold text-center">Đăng nhập</h1>
                         <p className="text-center mb-6">Chào mừng đến App Chat RealTime NLU.</p>
+
+                        {/* Form đăng nhập */}
                         <form className="mb-6" onSubmit={handleLogin}>
+                            {/* Điền tên tài khoản */}
                             <div className="form-group">
                                 <label htmlFor="username" className="sr-only">Tên đăng nhập</label>
                                 <input
@@ -88,6 +99,7 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
                                     required
                                 />
                             </div>
+                            {/* Điền mật khẩu */}
                             <div className="form-group">
                                 <label htmlFor="password" className="sr-only">Mật khẩu</label>
                                 <input
@@ -102,6 +114,8 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
                             </div>
                             <button className="btn btn-lg btn-block btn-primary" type="submit">Đăng nhập</button>
                         </form>
+
+                        {/* Điều hướng tới đăng ký */}
                         <p className="text-center">
                             Chưa có tài khoản? <Link to="/register">Đăng ký tại đây</Link>.
                         </p>
@@ -112,4 +126,5 @@ const Login: React.FC<LoginProps> = ({ socket }) => {
     );
 };
 
+// @ts-ignore
 export default Login;
