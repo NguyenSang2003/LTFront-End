@@ -20,6 +20,12 @@ interface Message {
     timestamp: Date;
 }
 
+interface Room {
+    name: string;
+    createdAt: string;
+    members: string[];
+}
+
 const Chat: React.FC<ChatProps> = ({socket}) => {
     const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
     const [input, setInput] = useState("");
@@ -32,6 +38,10 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const navigate = useNavigate();
     const user = getCurrentUser();
     const [isEditing, setIsEditing] = useState(false); // Biến sửa tin nhắn
+    const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
+
+    const [rooms, setRooms] = useState<Room[]>([]);
+
 
     useEffect(() => {
         if (socket) {
@@ -97,12 +107,25 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 return;
             }
 
+            // const chatMessage = {
+            //     action: "onchat",
+            //     data: {
+            //         event: "SEND_CHAT",
+            //         data: {
+            //             type: "people",
+            //             to: recipient,
+            //             mes: input
+            //         }
+            //     }
+            // };
+
+            // Gửi cho Phòng hoặc người dùng
             const chatMessage = {
                 action: "onchat",
                 data: {
                     event: "SEND_CHAT",
                     data: {
-                        type: "people",
+                        type: rooms.some(room => room.name === recipient) ? "room" : "people",
                         to: recipient,
                         mes: input
                     }
@@ -125,13 +148,39 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-    // Hàm xử lý khi ấn vào người dùng
+    // Hàm xử lý khi ấn vào người dùng hoặc phòng
     const handleRecipientClick = (rec: string) => {
         setRecipient(rec);
         setIsChatVisible(true); //Hiển thị phần chat khi thu nhỏ màn hình
+
+        if (socket) {
+            if (rooms.some(room => room.name === rec)) {
+                sendMessage(socket, {
+                    action: "onchat",
+                    data: {
+                        event: "GET_ROOM_CHAT_MES",
+                        data: {
+                            name: rec,
+                            page: 1
+                        }
+                    }
+                });
+            } else {
+                sendMessage(socket, {
+                    action: "onchat",
+                    data: {
+                        event: "GET_PEOPLE_CHAT_MES",
+                        data: {
+                            name: rec,
+                            page: 1
+                        }
+                    }
+                });
+            }
+        }
     };
 
-    //Hàm sử lý lấy danh sách người dùng
+    //Hàm reset danh sách bạn bè
     const refreshUserList = () => {
         if (socket) {
             sendMessage(socket, {
@@ -145,20 +194,19 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
     // Hàm xử lý đăng xuất
     const handleLogout = () => {
-            localStorage.removeItem('user');
-            localStorage.removeItem('reloginCode');
+        localStorage.removeItem('user');
+        localStorage.removeItem('reloginCode');
 
-            if (socket) {
-                sendMessage(socket, {
-                    action: "onchat",
-                    data: {
-                        event: "LOGOUT",
-                    }
-                });
-            }
-            window.location.href = '/'; // sau khi đăng xuất sẽ chuyển về đăng nhập
+        if (socket) {
+            sendMessage(socket, {
+                action: "onchat",
+                data: {
+                    event: "LOGOUT",
+                }
+            });
         }
-    ;
+        window.location.href = '/'; // sau khi đăng xuất sẽ chuyển về đăng nhập
+    };
 
     // Hàm xóa cuộc hội thoại
     const deleteMessages = () => {
@@ -228,6 +276,52 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
+    // Hàm xử lý tìm kiếm trong danh sách bạn bè
+    const handleSearch = () => {
+        const filteredRecipients = recipients.filter(rec => rec.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        setRecipients(filteredRecipients);
+    };
+
+    // Nút thoát khi tìm kiếm bạn bè
+    const handleExitSearch = () => {
+        setSearchQuery("");
+        refreshUserList();
+    };
+
+    // Hàm tạo ra phòng
+    const createRoom = () => {
+        const roomName = prompt("Nhập tên phòng mới để tạo:");
+        if (roomName && socket) {
+            const message = {
+                action: "onchat",
+                data: {
+                    event: "CREATE_ROOM",
+                    data: {
+                        name: roomName
+                    }
+                }
+            };
+            sendMessage(socket, message);
+        }
+    };
+
+    // Hàm tham gia vào phòng
+    const joinRoom = () => {
+        const roomName = prompt("Nhập tên phòng cần tham gia:");
+        if (roomName && socket) {
+            const message = {
+                action: "onchat",
+                data: {
+                    event: "JOIN_ROOM",
+                    data: {
+                        name: roomName
+                    }
+                }
+            };
+            sendMessage(socket, message);
+        }
+    };
+
 
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
@@ -240,17 +334,52 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
                 {/* Tên người dùng và đăng xuất */}
                 <div className="d-flex justify-content-between align-items-center p-4">
-                    <h6>{user || 'Loading...'}</h6>
+                    <h6 style={{
+                        fontSize: '21px', fontFamily: 'sans-serif', fontWeight: 'bold'
+                    }}>{user || 'Loading...'}</h6>
+
+                    {/* Nút tham gia phòng */}
+                    <button style={{padding: '6.5px 13px'}} className="btn btn-success"
+                            onClick={joinRoom} title={"Vào phòng"}>
+                        <i style={{margin: '3px 0px 0px 2px'}} className="material-icons">input</i></button>
+
+                    {/* Nút tạo nhóm chat */}
+                    <button
+                        style={{padding: '6.5px 13px'}} className="btn btn-success"
+                        onClick={createRoom} title={"Tạo nhóm"}>
+                        <i style={{margin: '3px 0px 0px 2px'}} className="material-icons">group_add</i>
+                    </button>
+
+
+                    {/* Nút đăng xuất */}
                     <button
                         style={{
                             fontFamily: 'sans-serif', fontWeight: 'bold'
-                        }} className="btn btn-danger" onClick={handleLogout}>Đăng xuất
+                        }}
+                        className="btn btn-danger" onClick={handleLogout} title={"Đăng xuất"}>
+                        <i className="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
 
-                {/* Chức năng tìm kiếm người dùng */}
+                {/* Chức năng tìm kiếm bạn bè và nhóm */}
                 <div className="p-4">
-                    <input type="text" className="form-control" placeholder="Tìm kiếm người dùng"/>
+                    <div className="input-group mb-2">
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Tìm kiếm bạn bè"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+
+                        {/* Nút tìm */}
+                        <button className="btn btn-success" onClick={handleSearch} title={"Tìm kiếm"}>
+                            <i className="fa-solid fa-magnifying-glass"></i></button>
+                        {/* Nút thoát */}
+                        <button className="btn btn-danger mr-3" onClick={handleExitSearch}
+                                title={"Thoát"}>X
+                        </button>
+                    </div>
                 </div>
 
                 {/* Giao diện kết bạn */}
@@ -259,25 +388,28 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="Nhập tên người dùng mới..."
+                            placeholder="Nhập tên người dùng ở đây ..."
                             value={newUser}
                             onChange={(e) => setNewUser(e.target.value)}
                         />
-                        <button className="btn btn-success" onClick={handleAddFriend}>Kết bạn</button>
+                        <button style={{padding: '5px 10px'}} className="btn btn-success"
+                                onClick={handleAddFriend} title={"Kết bạn"}>
+                            <i style={{margin: '3px 3px 0px 0px'}} className="material-icons">person_add</i>
+                        </button>
                     </div>
                 </div>
 
-                {/* Danh sách bạn bè */}
+                {/* Danh sách bạn bè và phòng */}
                 <div className="d-flex justify-content-between align-items-center p-4">
-                    <h6>Danh sách bạn bè</h6>
+                    <h6>Danh sách bạn bè & nhóm</h6>
 
-                    {/* Nút tải lại danh sách người dùng */}
+                    {/* Nút tải lại danh sách bạn bè */}
                     <button style={{fontFamily: 'sans-serif', fontWeight: 'bold'}} className="btn btn-success"
-                            onClick={refreshUserList}>Tải lại
+                            onClick={refreshUserList} title={"Tải lại"}><i className="fa-solid fa-rotate-right"></i>
                     </button>
                 </div>
 
-                {/* Hiển thị lên danh sách các người dùng */}
+                {/* Hiển thị lên danh sách bạn bè */}
                 <div className="recipients list-group list-group-flush">
                     {recipients.length > 0 ? (
                         recipients.map((rec) => (
@@ -289,7 +421,25 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             </div>
                         ))
                     ) : (
-                        <div className="list-group-item">Không có người dùng nào đăng nhập hiện tại.</div>
+                        <div className="list-group-item">Bạn chưa có người bạn nào. Hãy kết bạn thêm và họ sẽ ở
+                            đây.</div>
+                    )}
+                </div>
+
+                {/* Hiển thị danh sách Phòng */}
+                <div className="recipients list-group list-group-flush">
+                    {rooms.length > 0 ? (
+                        rooms.map((room) => (
+                            <div
+                                key={room.name}
+                                className={`list-group-item list-group-item-action ${room.name === recipient ? 'active' : ''}`}
+                                onClick={() => handleRecipientClick(room.name)}
+                            >
+                                {room.name}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="list-group-item">Bạn chưa có nhóm nào cả.</div>
                     )}
                 </div>
             </div>
@@ -311,8 +461,14 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                 </a>
                                 <h6 style={{margin: '1px', fontSize: '18px', fontWeight: 'bold'}}
                                     className="mb-0 ml-2">{recipient ? `Đang chat với ${recipient}` : 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
+
+                                <button className="btn text-primary">
+                                    Thông tin Phòng: tên, người chủ, số thành viên
+                                </button>
+
                             </div>
                         </div>
+
 
                         {/* Nút Xóa đoạn chat */}
                         <button className="btn btn-link text-danger" onClick={deleteMessages}>
@@ -377,7 +533,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             )}
                             <button className="btn btn-primary" type="submit">Gửi</button>
                         </form>
-
                     </div>
                 </div>
             </div>
