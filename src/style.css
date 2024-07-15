@@ -1,0 +1,23 @@
+.message {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+.message.sent {
+  justify-content: flex-end;
+}
+
+.message-content {
+  max-width: 60%;
+  padding: 10px;
+  border-radius: 10px;
+  word-wrap: break-word;
+  background-color: #d1e7dd;
+}
+
+.message.received .message-content {
+  background-color: #f8d7da;
+}
+
+/*# sourceMappingURL=style.css.map */

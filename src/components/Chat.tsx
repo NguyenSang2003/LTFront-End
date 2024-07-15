@@ -4,6 +4,9 @@ import {sendMessage} from '../utils/websocket';
 import '../assets/css/template.min.css';
 import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
 import {formatMessageTime} from '../utils/timeFormatter';
+import '../style.css';
+import EmojiPicker, {EmojiClickData} from 'emoji-picker-react'; // Lấy thư viện icon emoji
+
 
 interface ChatProps {
     socket: WebSocket | null;
@@ -32,6 +35,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const navigate = useNavigate();
     const user = getCurrentUser();
     const [isEditing, setIsEditing] = useState(false); // Biến sửa tin nhắn
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
 
     useEffect(() => {
         if (socket) {
@@ -227,6 +232,11 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             setNewUser("");
         }
     };
+    //THàm xử lý thêm icon emoji
+    const handleEmojiClick = (emojiData: EmojiClickData) => {
+        setInput(prevInput => prevInput + emojiData.emoji);
+    };
+
 
 
     return (
@@ -250,7 +260,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
                 {/* Chức năng tìm kiếm người dùng */}
                 <div className="p-4">
-                    <input type="text" className="form-control" placeholder="Tìm kiếm người dùng"/>
+                    <input type="text" className="form-control" placeholder="Tìm kiếm người dùng" />
                 </div>
 
                 {/* Giao diện kết bạn */}
@@ -272,7 +282,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <h6>Danh sách bạn bè</h6>
 
                     {/* Nút tải lại danh sách người dùng */}
-                    <button style={{fontFamily: 'sans-serif', fontWeight: 'bold'}} className="btn btn-success"
+                    <button style={{ fontFamily: 'sans-serif', fontWeight: 'bold' }} className="btn btn-success"
                             onClick={refreshUserList}>Tải lại
                     </button>
                 </div>
@@ -281,7 +291,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 <div className="recipients list-group list-group-flush">
                     {recipients.length > 0 ? (
                         recipients.map((rec) => (
-                            <div style={{color: '#75e38e', fontSize: '18px', fontWeight: 'bold'}}
+                            <div style={{ color: '#75e38e', fontSize: '18px', fontWeight: 'bold' }}
                                  key={rec.name}
                                  className={`list-group-item list-group-item-action ${rec.name === recipient ? 'active' : ''}`}
                                  onClick={() => handleRecipientClick(rec.name)}>
@@ -305,11 +315,11 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             <div className="media-body d-flex align-items-center">
 
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
-                                <a style={{margin: '0 8px 0 4px'}} className="text-muted px-0" href="#"
+                                <a style={{ margin: '0 8px 0 4px' }} className="text-muted px-0" href="#"
                                    onClick={() => setIsChatVisible(false)}>
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </a>
-                                <h6 style={{margin: '1px', fontSize: '18px', fontWeight: 'bold'}}
+                                <h6 style={{ margin: '1px', fontSize: '18px', fontWeight: 'bold' }}
                                     className="mb-0 ml-2">{recipient ? `Đang chat với ${recipient}` : 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
                             </div>
                         </div>
@@ -323,45 +333,54 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     {/* Phần hiển thị tin nhắn */}
                     <div className="message-box chat-content flex-grow-1 p-4 overflow-auto">
                         {messages[recipient]?.map((message, index) => (
-                            <div key={index} className="mb-3 p-3 bg-light rounded">
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <span>{formatMessageTime(message.timestamp)}</span>
+                            <div key={index} className={`message ${message.content.startsWith('Bạn: ') ? 'sent' : 'received'}`}>
+                                <div className="message-content">
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <span>{formatMessageTime(message.timestamp)}</span>
 
-                                    {/* Nút chi tiết tin nhắn */}
-                                    <div className="dropdown">
-                                        <button className="btn btn-secondary btn-sm dropdown-toggle" type="button"
-                                                onClick={() => toggleDropdown(index)}>
-                                            Tuỳ chọn
-                                        </button>
-                                        {dropdownVisible === index && (
-                                            <div className="dropdown-menu show">
-                                                {message.content.startsWith('Bạn: ') ? (
-                                                    <>
-                                                        <button className="dropdown-item"
-                                                                onClick={() => handleEditMessage(index)}>
-                                                            <i style={{marginRight: '6px'}} className="fa fa-edit"></i>Sửa
-                                                        </button>
+                                        {/* Nút chi tiết tin nhắn */}
+                                        <div className="dropdown">
+                                            <button className="btn btn-secondary btn-sm dropdown-toggle" type="button"
+                                                    onClick={() => toggleDropdown(index)}>
+                                                Tuỳ chọn
+                                            </button>
+                                            {dropdownVisible === index && (
+                                                <div className="dropdown-menu show">
+                                                    {message.content.startsWith('Bạn: ') ? (
+                                                        <>
+                                                            <button className="dropdown-item"
+                                                                    onClick={() => handleEditMessage(index)}>
+                                                                <i style={{ marginRight: '6px' }} className="fa fa-edit"></i>Sửa
+                                                            </button>
+                                                            <button className="dropdown-item"
+                                                                    onClick={() => handleDeleteMessage(index)}>
+                                                                <i style={{ marginRight: '6px' }}
+                                                                   className="fa fa-trash"></i> Xóa
+                                                            </button>
+                                                        </>
+                                                    ) : (
                                                         <button className="dropdown-item"
                                                                 onClick={() => handleDeleteMessage(index)}>
-                                                            <i style={{marginRight: '6px'}}
-                                                               className="fa fa-trash"></i> Xóa
+                                                            <i style={{ marginRight: '6px' }} className="fa fa-trash"></i> Xóa
                                                         </button>
-                                                    </>
-                                                ) : (
-                                                    <button className="dropdown-item"
-                                                            onClick={() => handleDeleteMessage(index)}>
-                                                        <i style={{marginRight: '6px'}} className="fa fa-trash"></i> Xóa
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    {/* Hiển thị tin nhắn */}
+                                    <p className="mb-0">
+                                        {message.content.startsWith('Bạn: ') ? (
+                                            message.content
+                                        ) : (
+                                            `${recipients.find(rec => rec.name === recipient)?.name}: ${message.content}`
+                                        )}
+                                    </p>
                                 </div>
-                                <p className="mb-0">{message.content}</p>
                             </div>
-
                         ))}
                     </div>
+
 
                     {/* Trường nhập tin nhắn */}
                     <div className="chat-footer border-top py-3 px-4">
@@ -369,20 +388,35 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             e.preventDefault();
                             sendMessageHandler();
                         }}>
-                            <input type="text" className="form-control mr-3" placeholder="Nhập tin nhắn..."
-                                   value={input} onChange={(e) => setInput(e.target.value)}/>
+                            <input
+                                type="text"
+                                className="form-control mr-3"
+                                placeholder="Nhập tin nhắn..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                            />
                             {isEditing && (
                                 <button type="button" className="btn btn-danger mr-3"
                                         onClick={cancelEditMessage}>X</button>
                             )}
+                            <button type="button" className="btn btn-outline-secondary mr-2"
+                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                                😊
+                            </button>
+                            {showEmojiPicker && (
+                                <div style={{ position: 'absolute', bottom: '60px', left: '10px', zIndex: 1000 }}>
+                                    <EmojiPicker onEmojiClick={handleEmojiClick} />
+                                </div>
+                            )}
                             <button className="btn btn-primary" type="submit">Gửi</button>
                         </form>
-
                     </div>
+
                 </div>
             </div>
         </div>
     );
+
 
 };
 
