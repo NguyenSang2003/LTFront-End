@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {sendMessage} from '../utils/websocket';
 import '../assets/css/template.min.css';
@@ -41,6 +41,73 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
 
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
+
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // useEffect(() => {
+    //     if (socket) {
+    //         // Hàm xử lý các tin nhắn được gửi tới
+    //         const handleMessage = (msg: MessageEvent) => {
+    //             const data = JSON.parse(msg.data);
+    //             console.log("Received message: ", data);
+    //             if (data.event === "RECEIVE_CHAT" || (data.event === "SEND_CHAT" && data.status === "success")) {
+    //                 const newMessages = {...messages};
+    //                 if (!newMessages[recipient]) {
+    //                     newMessages[recipient] = [];
+    //                 }
+    //                 newMessages[recipient].push({
+    //                     content: data.data.mes,
+    //                     timestamp: new Date(),
+    //                 });
+    //                 setMessages(newMessages);
+    //                 localStorage.setItem('messages', JSON.stringify(newMessages));
+    //             } else if (data.event === "AUTH" && data.status === "error" && data.mes === "User not Login") {
+    //                 alert("Phiên đăng nhập đã hết. Hãy đăng nhập lại.");
+    //                 navigate('/');
+    //             } else if (data.event === "USER_LIST" || data.event === "USER_LIST_UPDATE" || data.event === "GET_USER_LIST") {
+    //                 setRecipients(data.data.users || data.data);
+    //             } else if (data.event === "CREATE_ROOM" || data.event === "JOIN_ROOM") {
+    //                 const newRoom = {
+    //                     name: data.data.name,
+    //                     createdAt: new Date().toISOString(),
+    //                     members: data.data.userList.map((user: User) => user.name)
+    //                 };
+    //                 setRooms((prevRooms) => [...prevRooms, newRoom]);
+    //                 localStorage.setItem('rooms', JSON.stringify([...rooms, newRoom]));
+    //             } else if (data.event === "GET_ROOM_CHAT_MES" && data.status === "success") {
+    //                 const newMessages = {...messages};
+    //                 newMessages[data.data.name] = data.data.chatData.map((chat: any) => ({
+    //                     content: chat.mes,
+    //                     timestamp: new Date(chat.timestamp)
+    //                 }));
+    //                 setMessages(newMessages);
+    //                 localStorage.setItem('messages', JSON.stringify(newMessages));
+    //             } else if (data.event === "GET_PEOPLE_CHAT_MES" && data.status === "success") {
+    //                 const newMessages = {...messages};
+    //                 newMessages[data.data.name] = data.data.chatData.map((chat: any) => ({
+    //                     content: chat.mes,
+    //                     timestamp: new Date(chat.timestamp)
+    //                 }));
+    //                 setMessages(newMessages);
+    //                 localStorage.setItem('messages', JSON.stringify(newMessages));
+    //             }
+    //         };
+    //
+    //         sendMessage(socket, {
+    //             action: "onchat",
+    //             data: {
+    //                 event: "GET_USER_LIST"
+    //             }
+    //         });
+    //
+    //         socket.addEventListener('message', handleMessage);
+    //
+    //         return () => {
+    //             socket.removeEventListener('message', handleMessage);
+    //         };
+    //     }
+    // }, [socket, navigate, recipient, messages]);
 
 
     useEffect(() => {
@@ -49,6 +116,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 console.log("Received message: ", data);
+
                 if (data.event === "RECEIVE_CHAT" || (data.event === "SEND_CHAT" && data.status === "success")) {
                     const newMessages = {...messages};
                     if (!newMessages[recipient]) {
@@ -56,8 +124,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     }
                     newMessages[recipient].push({
                         content: data.data.mes,
-                        timestamp: new Date(),
+                        timestamp: new Date()
                     });
+                    newMessages[recipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                     setMessages(newMessages);
                     localStorage.setItem('messages', JSON.stringify(newMessages));
                 } else if (data.event === "AUTH" && data.status === "error" && data.mes === "User not Login") {
@@ -65,6 +134,25 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     navigate('/');
                 } else if (data.event === "USER_LIST" || data.event === "USER_LIST_UPDATE" || data.event === "GET_USER_LIST") {
                     setRecipients(data.data.users || data.data);
+                } else if (data.event === "CREATE_ROOM" || data.event === "JOIN_ROOM") {
+                    const newRoom = {
+                        name: data.data.name,
+                        createdAt: new Date().toISOString(),
+                        members: data.data.userList.map((user: User) => user.name)
+                    };
+                    setRooms((prevRooms) => [...prevRooms, newRoom]);
+                    localStorage.setItem('rooms', JSON.stringify([...rooms, newRoom]));
+                } else if ((data.event === "GET_ROOM_CHAT_MES" || data.event === "GET_PEOPLE_CHAT_MES") && data.status === "success") {
+                    const newMessages = {...messages};
+                    const chatData = data.data;
+                    const newRecipient = data.data[0]?.to || data.data[0]?.name; // Use 'to' or 'name' to set recipient
+                    newMessages[newRecipient] = chatData.map((chat: any) => ({
+                        content: chat.mes,
+                        timestamp: new Date(chat.createAt)
+                    }));
+                    newMessages[newRecipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                    setMessages(newMessages);
+                    localStorage.setItem('messages', JSON.stringify(newMessages));
                 }
             };
 
@@ -83,11 +171,24 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     }, [socket, navigate, recipient, messages]);
 
+
+    // Giúp cuộn tới tin nhắn mới nhất
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages, recipient]);
+
+
     // Lưu tin nhắn trong localStorage
     useEffect(() => {
         const storedMessages = localStorage.getItem('messages');
         if (storedMessages) {
             setMessages(JSON.parse(storedMessages));
+        }
+        const storedRooms = localStorage.getItem('rooms');
+        if (storedRooms) {
+            setRooms(JSON.parse(storedRooms));
         }
     }, []);
 
@@ -107,25 +208,15 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 return;
             }
 
-            // const chatMessage = {
-            //     action: "onchat",
-            //     data: {
-            //         event: "SEND_CHAT",
-            //         data: {
-            //             type: "people",
-            //             to: recipient,
-            //             mes: input
-            //         }
-            //     }
-            // };
+            const isRoom = rooms.some(room => room.name === recipient);
 
-            // Gửi cho Phòng hoặc người dùng
+            // Gửi cho Phòng hoặc người dùng tùy vào người nhận được chọn là Room hay People
             const chatMessage = {
                 action: "onchat",
                 data: {
                     event: "SEND_CHAT",
                     data: {
-                        type: rooms.some(room => room.name === recipient) ? "room" : "people",
+                        type: isRoom ? "room" : "people",
                         to: recipient,
                         mes: input
                     }
@@ -155,6 +246,15 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
         if (socket) {
             if (rooms.some(room => room.name === rec)) {
+                sendMessage(socket, {
+                    action: "onchat",
+                    data: {
+                        event: "JOIN_ROOM",
+                        data: {
+                            name: rec
+                        }
+                    }
+                });
                 sendMessage(socket, {
                     action: "onchat",
                     data: {
@@ -250,7 +350,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
-    // Hàm xử lý hiển thị menu xổ xuống
+    // Hàm xử lý hiển thị menu xổ xuống đối với tin nhắn
     const toggleDropdown = (index: number) => {
         setDropdownVisible(dropdownVisible === index ? null : index);
     };
@@ -339,7 +439,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     }}>{user || 'Loading...'}</h6>
 
                     {/* Nút tham gia phòng */}
-                    <button style={{padding: '6.5px 13px'}} className="btn btn-success"
+                    <button style={{padding: '6.5px 13px', marginLeft: '150px'}} className="btn btn-success"
                             onClick={joinRoom} title={"Vào phòng"}>
                         <i style={{margin: '3px 0px 0px 2px'}} className="material-icons">input</i></button>
 
@@ -388,7 +488,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="Nhập tên người dùng ở đây ..."
+                            placeholder="Nhập tên người bạn cần kết bạn ..."
                             value={newUser}
                             onChange={(e) => setNewUser(e.target.value)}
                         />
@@ -401,7 +501,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
                 {/* Danh sách bạn bè và phòng */}
                 <div className="d-flex justify-content-between align-items-center p-4">
-                    <h6>Danh sách bạn bè & nhóm</h6>
+                    <h6>Danh sách bạn bè & phòng</h6>
 
                     {/* Nút tải lại danh sách bạn bè */}
                     <button style={{fontFamily: 'sans-serif', fontWeight: 'bold'}} className="btn btn-success"
@@ -461,14 +561,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                 </a>
                                 <h6 style={{margin: '1px', fontSize: '18px', fontWeight: 'bold'}}
                                     className="mb-0 ml-2">{recipient ? `Đang chat với ${recipient}` : 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
-
-                                <button className="btn text-primary">
-                                    Thông tin Phòng: tên, người chủ, số thành viên
-                                </button>
-
                             </div>
                         </div>
-
 
                         {/* Nút Xóa đoạn chat */}
                         <button className="btn btn-link text-danger" onClick={deleteMessages}>
@@ -477,13 +571,13 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     </div>
 
                     {/* Phần hiển thị tin nhắn */}
-                    <div className="message-box chat-content flex-grow-1 p-4 overflow-auto">
+                    <div className="message-box chat-content flex-grow-1 p-4 overflow-auto" ref={chatContainerRef}>
                         {messages[recipient]?.map((message, index) => (
                             <div key={index} className="mb-3 p-3 bg-light rounded">
                                 <div className="d-flex justify-content-between align-items-center">
                                     <span>{formatMessageTime(message.timestamp)}</span>
 
-                                    {/* Nút chi tiết tin nhắn */}
+                                    {/* Nút tùy chọn tin nhắn */}
                                     <div className="dropdown">
                                         <button className="btn btn-secondary btn-sm dropdown-toggle" type="button"
                                                 onClick={() => toggleDropdown(index)}>
@@ -491,6 +585,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                         </button>
                                         {dropdownVisible === index && (
                                             <div className="dropdown-menu show">
+                                                {/* 2 nút khi tin nhắn của mik */}
                                                 {message.content.startsWith('Bạn: ') ? (
                                                     <>
                                                         <button className="dropdown-item"
@@ -504,6 +599,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                                         </button>
                                                     </>
                                                 ) : (
+                                                    // chỉ có thể xóa đối với tin nhắn tới
                                                     <button className="dropdown-item"
                                                             onClick={() => handleDeleteMessage(index)}>
                                                         <i style={{marginRight: '6px'}} className="fa fa-trash"></i> Xóa
@@ -515,7 +611,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                 </div>
                                 <p className="mb-0">{message.content}</p>
                             </div>
-
                         ))}
                     </div>
 
@@ -537,8 +632,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 </div>
             </div>
         </div>
-    );
-
+    )
+        ;
 };
 
 export default Chat;
