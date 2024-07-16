@@ -39,76 +39,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const user = getCurrentUser();
     const [isEditing, setIsEditing] = useState(false); // Biến sửa tin nhắn
     const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
-
     const [rooms, setRooms] = useState<Room[]>([]);
     const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
-
     const chatContainerRef = useRef<HTMLDivElement>(null);
-
-    // useEffect(() => {
-    //     if (socket) {
-    //         // Hàm xử lý các tin nhắn được gửi tới
-    //         const handleMessage = (msg: MessageEvent) => {
-    //             const data = JSON.parse(msg.data);
-    //             console.log("Received message: ", data);
-    //             if (data.event === "RECEIVE_CHAT" || (data.event === "SEND_CHAT" && data.status === "success")) {
-    //                 const newMessages = {...messages};
-    //                 if (!newMessages[recipient]) {
-    //                     newMessages[recipient] = [];
-    //                 }
-    //                 newMessages[recipient].push({
-    //                     content: data.data.mes,
-    //                     timestamp: new Date(),
-    //                 });
-    //                 setMessages(newMessages);
-    //                 localStorage.setItem('messages', JSON.stringify(newMessages));
-    //             } else if (data.event === "AUTH" && data.status === "error" && data.mes === "User not Login") {
-    //                 alert("Phiên đăng nhập đã hết. Hãy đăng nhập lại.");
-    //                 navigate('/');
-    //             } else if (data.event === "USER_LIST" || data.event === "USER_LIST_UPDATE" || data.event === "GET_USER_LIST") {
-    //                 setRecipients(data.data.users || data.data);
-    //             } else if (data.event === "CREATE_ROOM" || data.event === "JOIN_ROOM") {
-    //                 const newRoom = {
-    //                     name: data.data.name,
-    //                     createdAt: new Date().toISOString(),
-    //                     members: data.data.userList.map((user: User) => user.name)
-    //                 };
-    //                 setRooms((prevRooms) => [...prevRooms, newRoom]);
-    //                 localStorage.setItem('rooms', JSON.stringify([...rooms, newRoom]));
-    //             } else if (data.event === "GET_ROOM_CHAT_MES" && data.status === "success") {
-    //                 const newMessages = {...messages};
-    //                 newMessages[data.data.name] = data.data.chatData.map((chat: any) => ({
-    //                     content: chat.mes,
-    //                     timestamp: new Date(chat.timestamp)
-    //                 }));
-    //                 setMessages(newMessages);
-    //                 localStorage.setItem('messages', JSON.stringify(newMessages));
-    //             } else if (data.event === "GET_PEOPLE_CHAT_MES" && data.status === "success") {
-    //                 const newMessages = {...messages};
-    //                 newMessages[data.data.name] = data.data.chatData.map((chat: any) => ({
-    //                     content: chat.mes,
-    //                     timestamp: new Date(chat.timestamp)
-    //                 }));
-    //                 setMessages(newMessages);
-    //                 localStorage.setItem('messages', JSON.stringify(newMessages));
-    //             }
-    //         };
-    //
-    //         sendMessage(socket, {
-    //             action: "onchat",
-    //             data: {
-    //                 event: "GET_USER_LIST"
-    //             }
-    //         });
-    //
-    //         socket.addEventListener('message', handleMessage);
-    //
-    //         return () => {
-    //             socket.removeEventListener('message', handleMessage);
-    //         };
-    //     }
-    // }, [socket, navigate, recipient, messages]);
-
 
     useEffect(() => {
         if (socket) {
@@ -150,6 +83,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         content: chat.mes,
                         timestamp: new Date(chat.createAt)
                     }));
+                    // lấy ra tin nhắn thì sắp xếp từ trên xuống theo thời gian tăng dần
+                    // Tin nhắn mới nhất ở cuối cùng
                     newMessages[newRecipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                     setMessages(newMessages);
                     localStorage.setItem('messages', JSON.stringify(newMessages));
