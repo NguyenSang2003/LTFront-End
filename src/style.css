@@ -13,11 +13,13 @@
   padding: 10px;
   border-radius: 10px;
   word-wrap: break-word;
-  background-color: #d1e7dd;
+  color: #fff;
+  background-color: #42ba96;
 }
 
 .message.received .message-content {
-  background-color: #f8d7da;
+  color: #fff;
+  background-color: #dd6262;
 }
 
 /*# sourceMappingURL=style.css.map */

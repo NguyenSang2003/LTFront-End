@@ -31,20 +31,36 @@ interface Room {
 
 const Chat: React.FC<ChatProps> = ({socket}) => {
     const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
+
     const [input, setInput] = useState("");
+
     const [recipient, setRecipient] = useState("");
+
     const [recipients, setRecipients] = useState<User[]>([]);
+
     const [isChatVisible, setIsChatVisible] = useState(false);
+
     const [newUser, setNewUser] = useState("");
+
     const [editIndex, setEditIndex] = useState<number | null>(null);
+
     const [dropdownVisible, setDropdownVisible] = useState<number | null>(null);
+
     const navigate = useNavigate();
+
     const user = getCurrentUser();
+
     const [isEditing, setIsEditing] = useState(false); // Biến sửa tin nhắn
+
+    //Biến thêm icon
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
     const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
+
     const [rooms, setRooms] = useState<Room[]>([]);
+
     const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
+
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -515,41 +531,42 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     </div>
 
                     {/* Phần hiển thị tin nhắn */}
-                    <div className="message-box chat-content flex-grow-1 p-4 overflow-auto" ref={chatContainerRef}>
+                    <div className="message-box chat-content flex-grow-1 p-4 overflow-auto">
                         {messages[recipient]?.map((message, index) => (
-                            <div key={index} className="mb-3 p-3 bg-light rounded">
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <span>{formatMessageTime(message.timestamp)}</span>
+                            <div key={index} className={`message ${message.content.startsWith('Bạn: ') ? 'sent' : 'received'}`}>
+                                <div className="message-content">
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <span>{formatMessageTime(message.timestamp)}</span>
 
-                                    {/* Nút tùy chọn tin nhắn */}
-                                    <div className="dropdown">
-                                        <button className="btn btn-secondary btn-sm dropdown-toggle" type="button"
-                                                onClick={() => toggleDropdown(index)}>
-                                            Tuỳ chọn
-                                        </button>
-                                        {dropdownVisible === index && (
-                                            <div className="dropdown-menu show">
-                                                {/* 2 nút khi tin nhắn của mik */}
-                                                {message.content.startsWith('Bạn: ') ? (
-                                                    <>
-                                                        <button className="dropdown-item"
-                                                                onClick={() => handleEditMessage(index)}>
-                                                            <i style={{marginRight: '6px'}} className="fa fa-edit"></i>Sửa
-                                                        </button>
+                                        {/* Nút chi tiết tin nhắn */}
+                                        <div className="dropdown">
+                                            <button className="btn btn-secondary btn-sm dropdown-toggle" type="button"
+                                                    onClick={() => toggleDropdown(index)}>
+                                                Tuỳ chọn
+                                            </button>
+                                            {dropdownVisible === index && (
+                                                <div className="dropdown-menu show">
+                                                    {message.content.startsWith('Bạn: ') ? (
+                                                        <>
+                                                            <button className="dropdown-item"
+                                                                    onClick={() => handleEditMessage(index)}>
+                                                                <i style={{ marginRight: '6px' }} className="fa fa-edit"></i>Sửa
+                                                            </button>
+                                                            <button className="dropdown-item"
+                                                                    onClick={() => handleDeleteMessage(index)}>
+                                                                <i style={{ marginRight: '6px' }}
+                                                                   className="fa fa-trash"></i> Xóa
+                                                            </button>
+                                                        </>
+                                                    ) : (
                                                         <button className="dropdown-item"
                                                                 onClick={() => handleDeleteMessage(index)}>
                                                             <i style={{ marginRight: '6px' }} className="fa fa-trash"></i> Xóa
                                                         </button>
-                                                    </>
-                                                ) : (
-                                                    // chỉ có thể xóa đối với tin nhắn tới
-                                                    <button className="dropdown-item"
-                                                            onClick={() => handleDeleteMessage(index)}>
-                                                        <i style={{marginRight: '6px'}} className="fa fa-trash"></i> Xóa
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     {/* Hiển thị tin nhắn */}
                                     <p className="mb-0">
