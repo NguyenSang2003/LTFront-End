@@ -4,6 +4,9 @@ import {sendMessage} from '../utils/websocket';
 import '../assets/css/template.min.css';
 import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
 import {formatMessageTime} from '../utils/timeFormatter';
+import '../style.css';
+import EmojiPicker, {EmojiClickData} from 'emoji-picker-react'; // Lấy thư viện icon emoji
+
 
 interface ChatProps {
     socket: WebSocket | null;
@@ -38,6 +41,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     const navigate = useNavigate();
     const user = getCurrentUser();
     const [isEditing, setIsEditing] = useState(false); // Biến sửa tin nhắn
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
     const [rooms, setRooms] = useState<Room[]>([]);
     const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
@@ -310,6 +314,11 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             setNewUser("");
         }
     };
+    //THàm xử lý thêm icon emoji
+    const handleEmojiClick = (emojiData: EmojiClickData) => {
+        setInput(prevInput => prevInput + emojiData.emoji);
+    };
+
 
     // Hàm xử lý tìm kiếm trong danh sách bạn bè
     const handleSearch = () => {
@@ -448,7 +457,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 <div className="recipients list-group list-group-flush">
                     {recipients.length > 0 ? (
                         recipients.map((rec) => (
-                            <div style={{color: '#75e38e', fontSize: '18px', fontWeight: 'bold'}}
+                            <div style={{ color: '#75e38e', fontSize: '18px', fontWeight: 'bold' }}
                                  key={rec.name}
                                  className={`list-group-item list-group-item-action ${rec.name === recipient ? 'active' : ''}`}
                                  onClick={() => handleRecipientClick(rec.name)}>
@@ -490,11 +499,11 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             <div className="media-body d-flex align-items-center">
 
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
-                                <a style={{margin: '0 8px 0 4px'}} className="text-muted px-0" href="#"
+                                <a style={{ margin: '0 8px 0 4px' }} className="text-muted px-0" href="#"
                                    onClick={() => setIsChatVisible(false)}>
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </a>
-                                <h6 style={{margin: '1px', fontSize: '18px', fontWeight: 'bold'}}
+                                <h6 style={{ margin: '1px', fontSize: '18px', fontWeight: 'bold' }}
                                     className="mb-0 ml-2">{recipient ? `Đang chat với ${recipient}` : 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
                             </div>
                         </div>
@@ -529,8 +538,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                                         </button>
                                                         <button className="dropdown-item"
                                                                 onClick={() => handleDeleteMessage(index)}>
-                                                            <i style={{marginRight: '6px'}}
-                                                               className="fa fa-trash"></i> Xóa
+                                                            <i style={{ marginRight: '6px' }} className="fa fa-trash"></i> Xóa
                                                         </button>
                                                     </>
                                                 ) : (
@@ -543,11 +551,19 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                             </div>
                                         )}
                                     </div>
+                                    {/* Hiển thị tin nhắn */}
+                                    <p className="mb-0">
+                                        {message.content.startsWith('Bạn: ') ? (
+                                            message.content
+                                        ) : (
+                                            `${recipients.find(rec => rec.name === recipient)?.name}: ${message.content}`
+                                        )}
+                                    </p>
                                 </div>
-                                <p className="mb-0">{message.content}</p>
                             </div>
                         ))}
                     </div>
+
 
                     {/* Trường nhập tin nhắn */}
                     <div className="chat-footer border-top py-3 px-4">
@@ -555,18 +571,34 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             e.preventDefault();
                             sendMessageHandler();
                         }}>
-                            <input type="text" className="form-control mr-3" placeholder="Nhập tin nhắn..."
-                                   value={input} onChange={(e) => setInput(e.target.value)}/>
+                            <input
+                                type="text"
+                                className="form-control mr-3"
+                                placeholder="Nhập tin nhắn..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                            />
                             {isEditing && (
                                 <button type="button" className="btn btn-danger mr-3"
                                         onClick={cancelEditMessage}>X</button>
                             )}
+                            <button type="button" className="btn btn-outline-secondary mr-2"
+                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                                😊
+                            </button>
+                            {showEmojiPicker && (
+                                <div style={{ position: 'absolute', bottom: '60px', left: '10px', zIndex: 1000 }}>
+                                    <EmojiPicker onEmojiClick={handleEmojiClick} />
+                                </div>
+                            )}
                             <button className="btn btn-primary" type="submit">Gửi</button>
                         </form>
                     </div>
+
                 </div>
             </div>
         </div>
+
     )
         ;
 };

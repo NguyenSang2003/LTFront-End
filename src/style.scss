@@ -1,0 +1,28 @@
+$color-chat: #d1e7dd;
+$color_chat1: #f8d7da;
+
+.message {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+.message.sent {
+  justify-content: flex-end;
+}
+
+.message-content {
+  max-width: 60%;
+  padding: 10px;
+  border-radius: 10px;
+  word-wrap: break-word;
+
+
+  //Màu nền cho tin nhắn của bạn
+  background-color: $color_chat;
+}
+
+.message.received .message-content {
+  //Màu nền cho tin nhắn của người khác
+  background-color: $color_chat1;
+}
