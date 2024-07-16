@@ -17,7 +17,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Lấy thông tin đăng nhập từ localStorage
+        // Lấy thông tin đăng nhập từ localStorage( tên user và code)
         const savedUser = getCurrentUser();
         const savedCode = localStorage.getItem('reloginCode');
         if (savedUser && savedCode && socket) {
@@ -65,7 +65,7 @@ const Login: React.FC<LoginProps> = ({socket}) => {
                     // Relogin thành công thì hiển thị thông báo
                 } else if (data.event === 'RE_LOGIN' && data.status === 'success') {
                     console.log('Relogin successful: ', data);
-                    navigate('/chat');
+                    navigate('/chat'); // chuyển tới giao diện chat
                 }
             };
 
