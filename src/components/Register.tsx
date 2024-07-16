@@ -98,7 +98,7 @@ const Register: React.FC<RegisterProps> = ({ socket }) => {
                             <button className="btn btn-lg btn-block btn-primary" type="submit">Đăng ký</button>
                         </form>
                         <p className="text-center">
-                            Đã có tài khoản? <Link to="/login">Đăng nhập</Link>.
+                            Đã có tài khoản? <Link to="/">Đăng nhập</Link>.
                         </p>
                     </div>
                 </div>
