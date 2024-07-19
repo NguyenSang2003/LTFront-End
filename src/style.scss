@@ -1,12 +1,14 @@
 $color-chat: #42ba96;
 $color_chat1: #dd6262;
 
+/* Tin nhắn nhận về nằm bên trái */
 .message {
   display: flex;
   justify-content: flex-start;
   margin-bottom: 10px;
 }
 
+/* Tin nhắn gửi đi nằm bên phải */
 .message.sent {
   justify-content: flex-end;
 }

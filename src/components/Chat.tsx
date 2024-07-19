@@ -5,7 +5,9 @@ import '../assets/css/template.min.css';
 import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
 import {formatMessageTime} from '../utils/timeFormatter';
 import '../style.css';
-import EmojiPicker, {EmojiClickData} from 'emoji-picker-react'; // Lấy thư viện icon emoji
+import EmojiPicker, {EmojiClickData} from 'emoji-picker-react';
+import {Simulate} from "react-dom/test-utils";
+import input = Simulate.input; // Lấy thư viện icon emoji
 
 
 interface ChatProps {
@@ -21,6 +23,7 @@ interface User {
 interface Message {
     content: string;
     timestamp: Date;
+    sender: any;
 }
 
 interface Room {
@@ -54,18 +57,20 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
     //Biến thêm icon
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-    const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
+// Thêm state cho tìm kiếm
+    const [searchQuery, setSearchQuery] = useState("");
 
     const [rooms, setRooms] = useState<Room[]>([]);
 
-    const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
-
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+
+    const [own, setOwn] = useState("");
+    const [listMember, setListMember] = useState([]);
+
 
     useEffect(() => {
         if (socket) {
-            // Hàm xử lý các tin nhắn được gửi tới
             const handleMessage = (msg: MessageEvent) => {
                 const data = JSON.parse(msg.data);
                 console.log("Received message: ", data);
@@ -77,6 +82,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     }
                     newMessages[recipient].push({
                         content: data.data.mes,
+                        sender: data.data.name,  // Thêm thông tin người gửi
                         timestamp: new Date()
                     });
                     newMessages[recipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -87,7 +93,9 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     navigate('/');
                 } else if (data.event === "USER_LIST" || data.event === "USER_LIST_UPDATE" || data.event === "GET_USER_LIST") {
                     setRecipients(data.data.users || data.data);
-                } else if (data.event === "CREATE_ROOM" || data.event === "JOIN_ROOM") {
+                }
+                // Khi tao phòng và join phòng
+                else if (data.event === "CREATE_ROOM" || data.event === "JOIN_ROOM") {
                     const newRoom = {
                         name: data.data.name,
                         createdAt: new Date().toISOString(),
@@ -95,21 +103,67 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     };
                     setRooms((prevRooms) => [...prevRooms, newRoom]);
                     localStorage.setItem('rooms', JSON.stringify([...rooms, newRoom]));
-                } else if ((data.event === "GET_ROOM_CHAT_MES" || data.event === "GET_PEOPLE_CHAT_MES") && data.status === "success") {
+
+                    if (Array.isArray(data.data.chatData)) {
+                        const newMessages = {...messages};
+                        const chatData = data.data.chatData;
+                        const roomName = data.data.name;
+                        newMessages[roomName] = chatData.map((chat: any) => ({
+                            content: chat.mes,
+                            sender: chat.name,  // Thêm thông tin người gửi
+                            timestamp: new Date(chat.createAt)
+                        }));
+                        newMessages[roomName].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                        setMessages(newMessages);
+                        localStorage.setItem('messages', JSON.stringify(newMessages));
+                    } else {
+                        console.error("chatData is not an array", data.data.chatData);
+                    }
+                }
+                // Lấy ra tin nhắn trong phòng chat
+                else if (data.event === "GET_ROOM_CHAT_MES" && data.status === "success") {
+                    console.log("Handling room chat messages");
+                    const newMessages = {...messages};
+                    const chatData = data.data.chatData || [];
+                    const newRecipient = data.data[0]?.to || data.data[0]?.name;
+
+                    if (Array.isArray(chatData)) {
+                        newMessages[newRecipient] = chatData.map((chat: any) => ({
+                            content: chat.mes,
+                            sender: chat.name,
+                            timestamp: new Date(chat.createAt)
+                        }));
+                        newMessages[newRecipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                        setMessages(newMessages);
+                        localStorage.setItem('messages', JSON.stringify(newMessages));
+                    } else {
+                        console.error("chatData is not an array", chatData);
+                    }
+
+                }
+                // Lấy ra tin nhắn của ngươi gửi với người
+                else if (data.event === "GET_PEOPLE_CHAT_MES" && data.status === "success") {
+                    console.log("Handling people chat messages");
                     const newMessages = {...messages};
                     const chatData = data.data;
-                    const newRecipient = data.data[0]?.to || data.data[0]?.name; // Use 'to' or 'name' to set recipient
-                    newMessages[newRecipient] = chatData.map((chat: any) => ({
-                        content: chat.mes,
-                        timestamp: new Date(chat.createAt)
-                    }));
-                    // lấy ra tin nhắn thì sắp xếp từ trên xuống theo thời gian tăng dần
-                    // Tin nhắn mới nhất ở cuối cùng
-                    newMessages[newRecipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-                    setMessages(newMessages);
-                    localStorage.setItem('messages', JSON.stringify(newMessages));
+                    const newRecipient = data.data[0]?.to || data.data[0]?.name;
+                    if (Array.isArray(chatData)) {
+                        newMessages[newRecipient] = chatData.map((chat: any) => ({
+                            content: chat.mes,
+                            sender: chat.name,
+                            timestamp: new Date(chat.createAt)
+                        }));
+                        newMessages[newRecipient].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+                        console.log("Updated people messages: ", newMessages);
+                        setMessages(newMessages);
+                        localStorage.setItem('messages', JSON.stringify(newMessages));
+                    } else {
+                        console.error("chatData is not an array", chatData);
+                    }
                 }
             };
+
 
             sendMessage(socket, {
                 action: "onchat",
@@ -185,9 +239,12 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             if (!newMessages[recipient]) {
                 newMessages[recipient] = [];
             }
+
+            // cần sửa lại sendder
             newMessages[recipient].push({
-                content: `Bạn: ${input}`,
-                timestamp: new Date(),
+                sender: getCurrentUser(),
+                content: `${input}`,
+                timestamp: new Date()
             });
             setMessages(newMessages);
             localStorage.setItem('messages', JSON.stringify(newMessages));
@@ -197,7 +254,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
     // Hàm xử lý khi ấn vào người dùng hoặc phòng
     const handleRecipientClick = (rec: string) => {
         setRecipient(rec);
-        setIsChatVisible(true); //Hiển thị phần chat khi thu nhỏ màn hình
+        setIsChatVisible(true); // Hiển thị phần chat khi thu nhỏ màn hình
 
         if (socket) {
             if (rooms.some(room => room.name === rec)) {
@@ -220,6 +277,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         }
                     }
                 });
+                // Gọi hàm joinRoom để tự động tham gia phòng
+                joinRoom2(rec);
             } else {
                 sendMessage(socket, {
                     action: "onchat",
@@ -234,6 +293,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             }
         }
     };
+
 
     //Hàm reset danh sách bạn bè
     const refreshUserList = () => {
@@ -330,11 +390,11 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             setNewUser("");
         }
     };
+
     //THàm xử lý thêm icon emoji
     const handleEmojiClick = (emojiData: EmojiClickData) => {
         setInput(prevInput => prevInput + emojiData.emoji);
     };
-
 
     // Hàm xử lý tìm kiếm trong danh sách bạn bè
     const handleSearch = () => {
@@ -382,6 +442,22 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
         }
     };
 
+    // Hàm tham gia vào phòng cho khi nhấn vào đoạn chat là phòng
+    const joinRoom2 = (roomName: string) => {
+        if (roomName && socket) {
+            const message = {
+                action: "onchat",
+                data: {
+                    event: "JOIN_ROOM",
+                    data: {
+                        name: roomName
+                    }
+                }
+            };
+            sendMessage(socket, message);
+        }
+    };
+
 
     return (
         <div className="d-flex flex-column flex-md-row vh-100">
@@ -397,9 +473,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <h6 style={{
                         fontSize: '21px', fontFamily: 'sans-serif', fontWeight: 'bold'
                     }}>{user || 'Loading...'}</h6>
-
                     {/* Nút tham gia phòng */}
-                    <button style={{padding: '6.5px 13px', marginLeft: '150px'}} className="btn btn-success"
+                    <button style={{padding: '6.5px 13px', marginLeft: '120px'}} className="btn btn-success"
                             onClick={joinRoom} title={"Vào phòng"}>
                         <i style={{margin: '3px 0px 0px 2px'}} className="material-icons">input</i></button>
 
@@ -437,7 +512,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             <i className="fa-solid fa-magnifying-glass"></i></button>
                         {/* Nút thoát */}
                         <button className="btn btn-danger mr-3" onClick={handleExitSearch}
-                                title={"Thoát"}>X
+                                title={"Thoát"}><i className="fa-solid fa-x"></i>
                         </button>
                     </div>
                 </div>
@@ -473,7 +548,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 <div className="recipients list-group list-group-flush">
                     {recipients.length > 0 ? (
                         recipients.map((rec) => (
-                            <div style={{ color: '#75e38e', fontSize: '18px', fontWeight: 'bold' }}
+                            <div style={{color: '#75e38e', fontSize: '18px', fontWeight: 'bold'}}
                                  key={rec.name}
                                  className={`list-group-item list-group-item-action ${rec.name === recipient ? 'active' : ''}`}
                                  onClick={() => handleRecipientClick(rec.name)}>
@@ -486,22 +561,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     )}
                 </div>
 
-                {/* Hiển thị danh sách Phòng */}
-                <div className="recipients list-group list-group-flush">
-                    {rooms.length > 0 ? (
-                        rooms.map((room) => (
-                            <div
-                                key={room.name}
-                                className={`list-group-item list-group-item-action ${room.name === recipient ? 'active' : ''}`}
-                                onClick={() => handleRecipientClick(room.name)}
-                            >
-                                {room.name}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="list-group-item">Bạn chưa có nhóm nào cả.</div>
-                    )}
-                </div>
+
             </div>
 
             {/* Phần khung chat */}
@@ -515,11 +575,11 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             <div className="media-body d-flex align-items-center">
 
                                 {/* Nút quay lại từ chat tới danh sách người dùng */}
-                                <a style={{ margin: '0 8px 0 4px' }} className="text-muted px-0" href="#"
+                                <a style={{margin: '0 8px 0 4px'}} className="text-muted px-0" href="#"
                                    onClick={() => setIsChatVisible(false)}>
                                     <i className="fa-solid fa-arrow-left"></i>
                                 </a>
-                                <h6 style={{ margin: '1px', fontSize: '18px', fontWeight: 'bold' }}
+                                <h6 style={{margin: '1px', fontSize: '18px', fontWeight: 'bold'}}
                                     className="mb-0 ml-2">{recipient ? `Đang chat với ${recipient}` : 'Chọn người nhận để bắt đầu trò chuyện'}</h6>
                             </div>
                         </div>
@@ -531,16 +591,19 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     </div>
 
                     {/* Phần hiển thị tin nhắn */}
-                    <div className="message-box chat-content flex-grow-1 p-4 overflow-auto">
-                        {messages[recipient]?.map((message, index) => (
-                            <div key={index} className={`message ${message.content.startsWith('Bạn: ') ? 'sent' : 'received'}`}>
+                    <div className="message-box chat-content flex-grow-1 p-4 overflow-auto" ref={chatContainerRef}>
+                        {Array.isArray(messages[recipient]) && messages[recipient].map((message, index) => (
+                            <div key={index}
+                                 className={`message ${message.sender === getCurrentUser() ? 'sent' : 'received'}`}>
                                 <div className="message-content">
                                     <div className="d-flex justify-content-between align-items-center">
                                         <span>{formatMessageTime(message.timestamp)}</span>
 
                                         {/* Nút chi tiết tin nhắn */}
                                         <div className="dropdown">
-                                            <button className="btn btn-secondary btn-sm dropdown-toggle" type="button"
+                                            <button style={{marginLeft: '10px'}}
+                                                    className="btn btn-secondary btn-sm dropdown-toggle"
+                                                    type="button"
                                                     onClick={() => toggleDropdown(index)}>
                                                 Tuỳ chọn
                                             </button>
@@ -550,35 +613,38 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                                         <>
                                                             <button className="dropdown-item"
                                                                     onClick={() => handleEditMessage(index)}>
-                                                                <i style={{ marginRight: '6px' }} className="fa fa-edit"></i>Sửa
+                                                                <i style={{marginRight: '6px'}}
+                                                                   className="fa fa-edit"></i>Sửa
                                                             </button>
                                                             <button className="dropdown-item"
                                                                     onClick={() => handleDeleteMessage(index)}>
-                                                                <i style={{ marginRight: '6px' }}
+                                                                <i style={{marginRight: '6px'}}
                                                                    className="fa fa-trash"></i> Xóa
                                                             </button>
                                                         </>
                                                     ) : (
                                                         <button className="dropdown-item"
                                                                 onClick={() => handleDeleteMessage(index)}>
-                                                            <i style={{ marginRight: '6px' }} className="fa fa-trash"></i> Xóa
+                                                            <i style={{marginRight: '6px'}}
+                                                               className="fa fa-trash"></i> Xóa
                                                         </button>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
+
                                     {/* Hiển thị tin nhắn */}
                                     <p className="mb-0">
-                                        {message.content.startsWith('Bạn: ') ? (
-                                            message.content
-                                        ) : (
-                                            `${recipients.find(rec => rec.name === recipient)?.name}: ${message.content}`
-                                        )}
+                                        {/* So sánh với user hiện tại để xem có phải người gửi đi không */}
+                                        <strong>{message.sender === getCurrentUser() ? 'Bạn' : message.sender}: </strong>
+                                        {message.content}
                                     </p>
+
                                 </div>
                             </div>
-                        ))}
+                        ))
+                        }
                     </div>
 
 
@@ -604,8 +670,13 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                 😊
                             </button>
                             {showEmojiPicker && (
-                                <div style={{ position: 'absolute', bottom: '60px', left: '10px', zIndex: 1000 }}>
-                                    <EmojiPicker onEmojiClick={handleEmojiClick} />
+                                <div style={{
+                                    position: 'absolute',
+                                    bottom: '60px',
+                                    left: '10px',
+                                    zIndex: 1000
+                                }}>
+                                    <EmojiPicker onEmojiClick={handleEmojiClick}/>
                                 </div>
                             )}
                             <button className="btn btn-primary" type="submit">Gửi</button>
@@ -616,8 +687,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             </div>
         </div>
 
-    )
-        ;
+    );
 };
 
 export default Chat;
