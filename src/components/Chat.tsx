@@ -4,11 +4,12 @@ import {sendMessage} from '../utils/websocket';
 import '../assets/css/template.min.css';
 import {setCurrentUser, getCurrentUser} from '../utils/userStorage';
 import {formatMessageTime} from '../utils/timeFormatter';
+// import {decodeMessage} from "../utils/decoder";
 import '../style.css';
 import EmojiPicker, {EmojiClickData} from 'emoji-picker-react';
 import {Simulate} from "react-dom/test-utils";
 import input = Simulate.input; // Lấy thư viện icon emoji
-
+import NotificationBox from "./NotificationBox";
 
 interface ChatProps {
     socket: WebSocket | null;
@@ -30,6 +31,7 @@ interface Room {
     name: string;
     createdAt: string;
     members: string[];
+    own: string;
 }
 
 const Chat: React.FC<ChatProps> = ({socket}) => {
@@ -64,10 +66,27 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
-
+    const [notification, setNotification] = useState("");
+    const [notificationVisible, setNotificationVisible] = useState(false);
     const [own, setOwn] = useState("");
     const [listMember, setListMember] = useState([]);
 
+    // Function to handle button click and show notification
+    const handleShowDetails = () => {
+        // Retrieve data (assuming 'own', 'data', 'userlist' are available in state or scope)
+        const ownData = own; // Assuming 'own' is a state or variable holding 'own' data
+        const roomData = rooms.find(room => room.name === recipient);
+        const membersData = roomData ? roomData.members : [];
+
+
+        // Update state to display notification
+        setNotificationVisible(true);
+    };
+
+    // Function to close notification
+    const handleCloseNotification = () => {
+        setNotificationVisible(false);
+    };
 
     useEffect(() => {
         if (socket) {
@@ -82,6 +101,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     }
                     newMessages[recipient].push({
                         content: data.data.mes,
+                        // decode utf - 8
+                        // content: decodeMessage(data.data.mes),
                         sender: data.data.name,  // Thêm thông tin người gửi
                         timestamp: new Date()
                     });
@@ -97,9 +118,10 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 // Khi tao phòng và join phòng
                 else if (data.event === "CREATE_ROOM" || data.event === "JOIN_ROOM") {
                     const newRoom = {
-                        name: data.data.name,
+                        name: data.data.name, //tên của căn phòng
                         createdAt: new Date().toISOString(),
-                        members: data.data.userList.map((user: User) => user.name)
+                        members: data.data.userList.map((user: User) => user.name), // lấy ra ca thành viên
+                        own: data.data.own, //Lấy tên chủ căn phòng
                     };
                     setRooms((prevRooms) => [...prevRooms, newRoom]);
                     localStorage.setItem('rooms', JSON.stringify([...rooms, newRoom]));
@@ -110,6 +132,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         const roomName = data.data.name;
                         newMessages[roomName] = chatData.map((chat: any) => ({
                             content: chat.mes,
+                            // decode utf - 8
+                            // content: decodeMessage(chat.mes),
                             sender: chat.name,  // Thêm thông tin người gửi
                             timestamp: new Date(chat.createAt)
                         }));
@@ -130,6 +154,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     if (Array.isArray(chatData)) {
                         newMessages[newRecipient] = chatData.map((chat: any) => ({
                             content: chat.mes,
+                            // decode utf - 8
+                            // content: decodeMessage(chat.mes),
                             sender: chat.name,
                             timestamp: new Date(chat.createAt)
                         }));
@@ -150,6 +176,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     if (Array.isArray(chatData)) {
                         newMessages[newRecipient] = chatData.map((chat: any) => ({
                             content: chat.mes,
+                            // decode utf - 8
+                            // content: decodeMessage(chat.mes),
                             sender: chat.name,
                             timestamp: new Date(chat.createAt)
                         }));
@@ -163,7 +191,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     }
                 }
             };
-
 
             sendMessage(socket, {
                 action: "onchat",
@@ -240,7 +267,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                 newMessages[recipient] = [];
             }
 
-            // cần sửa lại sendder
             newMessages[recipient].push({
                 sender: getCurrentUser(),
                 content: `${input}`,
@@ -277,7 +303,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                         }
                     }
                 });
-                // Gọi hàm joinRoom để tự động tham gia phòng
+                // Gọi hàm joinRoom để tham gia phòng
                 joinRoom2(rec);
             } else {
                 sendMessage(socket, {
@@ -293,7 +319,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             }
         }
     };
-
 
     //Hàm reset danh sách bạn bè
     const refreshUserList = () => {
@@ -380,14 +405,24 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     data: {
                         type: "people",
                         to: newUser,
-                        mes: `Xin chào hãy làm quen đi tôi là "${getCurrentUser()}" bạn có thể gõ tên tôi trong 
-                        thanh kết bạn, như thế chúng ta sẽ nhắn tin được với nhau`,
+                        mes: `Xin chào hãy làm quen đi tôi là "${getCurrentUser()}" bạn có thể gõ tên tôi trong thanh kết bạn, như thế chúng ta sẽ nhắn tin được với nhau`,
                     }
                 }
             };
             console.log("Sending friend request message: ", chatMessage);
             sendMessage(socket, chatMessage);
             setNewUser("");
+            setNotification("Gửi thành công");
+
+            // Tự ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                setNotification("");
+            }, 3000);
+        } else {
+            setNotification("Gửi thất bại");
+            setTimeout(() => {
+                setNotification("");
+            }, 3000);
         }
     };
 
@@ -473,6 +508,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     <h6 style={{
                         fontSize: '21px', fontFamily: 'sans-serif', fontWeight: 'bold'
                     }}>{user || 'Loading...'}</h6>
+
                     {/* Nút tham gia phòng */}
                     <button style={{padding: '6.5px 13px', marginLeft: '120px'}} className="btn btn-success"
                             onClick={joinRoom} title={"Vào phòng"}>
@@ -532,6 +568,13 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             <i style={{margin: '3px 3px 0px 0px'}} className="material-icons">person_add</i>
                         </button>
                     </div>
+                    {/* Thông báo */}
+                    {notification && (
+                        <div
+                            className={`alert ${notification === "Gửi thành công" ? "alert-success" : "alert-danger"} mt-2`}>
+                            {notification}
+                        </div>
+                    )}
                 </div>
 
                 {/* Danh sách bạn bè và phòng */}
@@ -561,7 +604,6 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                     )}
                 </div>
 
-
             </div>
 
             {/* Phần khung chat */}
@@ -584,10 +626,44 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                             </div>
                         </div>
 
-                        {/* Nút Xóa đoạn chat */}
-                        <button className="btn btn-link text-danger" onClick={deleteMessages}>
-                            <i className="fa-solid fa-trash"></i>
-                        </button>
+                        {/*/!* Nút Xóa đoạn chat *!/*/}
+                        {/*<button className="btn btn-link text-danger" onClick={deleteMessages}>*/}
+                        {/*    <i className="fa-solid fa-trash"></i>*/}
+                        {/*</button>*/}
+
+                        <div className="dropdown">
+                            <button
+                                style={{marginLeft: '10px'}}
+                                className="btn btn-secondary btn-sm dropdown-toggle"
+                                type="button"
+                                onClick={() => toggleDropdown(1)}>
+                                Tuỳ chọn
+                            </button>
+
+                            <div className={`dropdown-menu ${dropdownVisible === 1 ? 'show' : ''}`}>
+                                {/* Nút xóa toàn bộ tin nhắn */}
+                                <button className="dropdown-item text-danger" onClick={deleteMessages} title={"Xóa toàn bộ"}>
+                                    <i className="fa-solid fa-trash"></i>
+                                </button>
+
+                                {/* Nút chi tiết phòng */}
+                                <button className="dropdown-item" onClick={handleShowDetails} title={"Chi tiết phòng"}>
+                                    <i className="fa-solid fa-gear"></i>
+                                </button>
+
+                                {/* Notification box */}
+                                {notificationVisible && (
+                                    <NotificationBox
+                                        own={own}
+                                        rooms={rooms}
+                                        recipient={recipient}
+                                        onClose={handleCloseNotification}
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+
                     </div>
 
                     {/* Phần hiển thị tin nhắn */}
@@ -609,7 +685,7 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
                                             </button>
                                             {dropdownVisible === index && (
                                                 <div className="dropdown-menu show">
-                                                    {message.content.startsWith('Bạn: ') ? (
+                                                    {message.sender === getCurrentUser() ? (
                                                         <>
                                                             <button className="dropdown-item"
                                                                     onClick={() => handleEditMessage(index)}>
@@ -687,7 +763,8 @@ const Chat: React.FC<ChatProps> = ({socket}) => {
             </div>
         </div>
 
-    );
+    )
+        ;
 };
 
 export default Chat;
